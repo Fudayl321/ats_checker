@@ -315,6 +315,22 @@ function detectHardFilters(jdText, resumeText) {
   return filters;
 }
 
+function detectQuantification(resumeText) {
+  const patterns = [
+    /\d+%/g,
+    /\$[\d,]+/g,
+    /\d+x\b/g,
+    /\d+\s*(people|reports|engineers|clients|users|months|countries|stores|markets|products|projects|teams)/gi,
+    /(increased|reduced|improved|grew|saved|generated)\s[^.]*\d+/gi,
+  ];
+  let count = 0;
+  for (const pattern of patterns) {
+    const hits = resumeText.match(pattern);
+    if (hits) count += hits.length;
+  }
+  return { score: Math.min(100, count * 20), count };
+}
+
 if (typeof module !== 'undefined') {
-  module.exports = { buildSynonymMap, extractKeywords, matchKeywords, generateSuggestions, detectSections, calculateExperienceFit, calculateWeightedScore, splitRequiredPreferred, detectHardFilters };
+  module.exports = { buildSynonymMap, extractKeywords, matchKeywords, generateSuggestions, detectSections, calculateExperienceFit, calculateWeightedScore, splitRequiredPreferred, detectHardFilters, detectQuantification };
 }

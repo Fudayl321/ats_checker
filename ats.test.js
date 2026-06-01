@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { buildSynonymMap, extractKeywords, matchKeywords, generateSuggestions, detectSections, calculateExperienceFit, calculateWeightedScore, splitRequiredPreferred, detectHardFilters } = require('./ats.js');
+const { buildSynonymMap, extractKeywords, matchKeywords, generateSuggestions, detectSections, calculateExperienceFit, calculateWeightedScore, splitRequiredPreferred, detectHardFilters, detectQuantification } = require('./ats.js');
 
 let passed = 0;
 let failed = 0;
@@ -447,6 +447,40 @@ test('check status for work authorization mention', () => {
 test('empty array when JD has no hard requirements', () => {
   const filters = detectHardFilters('Great company culture, flexible hours', 'Experienced developer');
   assert.deepStrictEqual(filters, []);
+});
+
+// --- detectQuantification ---
+console.log('\ndetectQuantification');
+
+test('score 0 and count 0 for no metrics', () => {
+  const { score, count } = detectQuantification('Experienced software engineer with skills in development');
+  assert.strictEqual(count, 0);
+  assert.strictEqual(score, 0);
+});
+
+test('detects percentage metrics', () => {
+  const { count } = detectQuantification('Improved performance by 40% and reduced errors by 15%');
+  assert.ok(count >= 2, `expected ≥2, got ${count}`);
+});
+
+test('detects dollar amounts', () => {
+  const { count } = detectQuantification('Generated $500,000 in new revenue');
+  assert.ok(count >= 1, `expected ≥1, got ${count}`);
+});
+
+test('detects headcount metrics', () => {
+  const { count } = detectQuantification('Managed a team of 8 engineers across 3 projects');
+  assert.ok(count >= 1, `expected ≥1, got ${count}`);
+});
+
+test('score caps at 100 for 5+ metrics', () => {
+  const { score } = detectQuantification('Grew revenue 30%, reduced costs 20%, managed 10 engineers, saved $50,000, improved uptime 15%, led 4 projects');
+  assert.strictEqual(score, 100);
+});
+
+test('returns score and count fields', () => {
+  const result = detectQuantification('Any text');
+  assert.ok('score' in result && 'count' in result);
 });
 
 // --- Summary ---
