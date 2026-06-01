@@ -85,6 +85,33 @@ test('returns empty matched and missing for empty keywords array', () => {
   assert.deepStrictEqual(missing, []);
 });
 
+test('matches via synonym: JD has "javascript", resume has "JS"', () => {
+  const { matched, synonymHits } = matchKeywords(['javascript'], 'I work with JS daily');
+  assert.ok(matched.includes('javascript'), `expected javascript matched via JS, got ${JSON.stringify(matched)}`);
+  assert.ok(synonymHits.some(h => h.keyword === 'javascript' && h.matchedAs === 'js'), `expected synonymHit, got ${JSON.stringify(synonymHits)}`);
+});
+
+test('matches via synonym: JD has "kubernetes", resume has "k8s"', () => {
+  const { matched } = matchKeywords(['kubernetes'], 'experience with k8s cluster management');
+  assert.ok(matched.includes('kubernetes'), `expected kubernetes matched via k8s`);
+});
+
+test('matches via synonym: JD has "machine learning", resume has "ML"', () => {
+  const { matched } = matchKeywords(['machine learning'], 'Built ML pipelines for production');
+  assert.ok(matched.includes('machine learning'), `expected match via ML`);
+});
+
+test('synonymHits is empty when no alias used', () => {
+  const { synonymHits } = matchKeywords(['python'], 'I know Python well');
+  assert.deepStrictEqual(synonymHits, []);
+});
+
+test('synonymHits field present on empty keyword input', () => {
+  const result = matchKeywords([], 'any text');
+  assert.ok('synonymHits' in result, 'expected synonymHits field');
+  assert.deepStrictEqual(result.synonymHits, []);
+});
+
 // --- generateSuggestions ---
 console.log('\ngenerateSuggestions');
 

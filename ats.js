@@ -85,6 +85,15 @@ function buildSynonymMap() {
   };
 }
 
+function getSynonymsForKeyword(kw, synonymMap) {
+  const variants = new Set([kw]);
+  if (synonymMap[kw]) variants.add(synonymMap[kw]);
+  for (const [alias, canonical] of Object.entries(synonymMap)) {
+    if (canonical === kw) variants.add(alias);
+  }
+  return [...variants];
+}
+
 function extractKeywords(text) {
   if (!text || !text.trim()) return [];
   const words = text.toLowerCase().split(/[\s\-–—\/]+/); // split on whitespace, hyphens, dashes, slashes
@@ -108,21 +117,36 @@ function normalize(word) {
 }
 
 function matchKeywords(keywords, resumeText) {
-  if (!keywords.length) return { matched: [], missing: [] };
+  if (!keywords.length) return { matched: [], missing: [], synonymHits: [] };
+  const synonymMap = buildSynonymMap();
   const resumeLower = resumeText.toLowerCase();
   const resumeNormWords = resumeText.toLowerCase().split(/\s+/).map(normalize).join(' ');
   const matched = [];
   const missing = [];
+  const synonymHits = [];
 
   for (const kw of keywords) {
-    const normKw = kw.split(' ').map(normalize).join(' ');
-    if (resumeLower.includes(kw) || resumeNormWords.includes(normKw)) {
+    const variants = getSynonymsForKeyword(kw, synonymMap);
+    let found = false;
+    let matchedAlias = null;
+
+    for (const variant of variants) {
+      const normVariant = variant.split(' ').map(normalize).join(' ');
+      if (resumeLower.includes(variant) || resumeNormWords.includes(normVariant)) {
+        found = true;
+        if (variant !== kw) matchedAlias = variant;
+        break;
+      }
+    }
+
+    if (found) {
       matched.push(kw);
+      if (matchedAlias) synonymHits.push({ keyword: kw, matchedAs: matchedAlias });
     } else {
       missing.push(kw);
     }
   }
-  return { matched, missing };
+  return { matched, missing, synonymHits };
 }
 
 function generateSuggestions(missingKeywords, requirementsText) {
