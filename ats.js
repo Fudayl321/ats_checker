@@ -75,13 +75,14 @@ function detectSections(resumeText) {
     hasBullets: lines.some(l => /^[•\-\*]/.test(l)),
     hasJobTitles: lines.some(l => {
       const words = l.split(/\s+/);
-      return words.length >= 1 && words.length <= 6 && /^[A-Z]/.test(l);
+      return words.length >= 2 && words.length <= 6 && /^[A-Z]/.test(l);
     }),
     noGarbling: (() => {
-      const tokens = text.split(/\s+/).filter(t => t.length > 0);
-      if (tokens.length === 0) return false;
-      const realWords = tokens.filter(t => /^[a-z]{2,}$/.test(t));
-      return (realWords.length / tokens.length) > 0.70;
+      const allTokens = text.split(/\s+/).filter(t => t.length > 0);
+      const wordLike = allTokens.filter(t => /[a-z]/.test(t));
+      if (wordLike.length === 0) return false;
+      const realWords = wordLike.filter(t => /^[a-z]{2,}$/.test(t));
+      return (realWords.length / wordLike.length) > 0.70;
     })(),
   };
 

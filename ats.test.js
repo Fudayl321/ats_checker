@@ -163,6 +163,11 @@ test('passes noGarbling check for clean text', () => {
   assert.ok(found.includes('noGarbling'), `expected noGarbling, got ${JSON.stringify(found)}`);
 });
 
+test('fails noGarbling check for garbled text', () => {
+  const { found } = detectSections('₁₂₃ ╗ ⌂ ╬ ║ ║ ╦ ╔ ≈ √ ≤ ≥ ≠ ∞ ∑ ∏ ∂');
+  assert.ok(!found.includes('noGarbling'), `expected noGarbling to fail on garbled text, got ${JSON.stringify(found)}`);
+});
+
 // --- Summary ---
 console.log(`\n${passed} passed, ${failed} failed\n`);
 if (failed > 0) process.exit(1);
