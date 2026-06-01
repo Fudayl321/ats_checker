@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { buildSynonymMap, extractKeywords, matchKeywords, generateSuggestions, detectSections, calculateExperienceFit, calculateWeightedScore, splitRequiredPreferred } = require('./ats.js');
+const { buildSynonymMap, extractKeywords, matchKeywords, generateSuggestions, detectSections, calculateExperienceFit, calculateWeightedScore, splitRequiredPreferred, detectHardFilters } = require('./ats.js');
 
 let passed = 0;
 let failed = 0;
@@ -394,6 +394,59 @@ test('returns arrays for empty input', () => {
   const { required, preferred } = splitRequiredPreferred('');
   assert.ok(Array.isArray(required));
   assert.ok(Array.isArray(preferred));
+});
+
+// --- detectHardFilters ---
+console.log('\ndetectHardFilters');
+
+test('pass for years when resume meets requirement', () => {
+  const filters = detectHardFilters('Minimum 3+ years experience required', 'I have 5 years of experience');
+  const f = filters.find(f => f.label.includes('years'));
+  assert.ok(f, 'expected a years filter');
+  assert.strictEqual(f.status, 'pass');
+});
+
+test('fail for years when resume falls short', () => {
+  const filters = detectHardFilters('Minimum 5+ years required', 'I have 2 years of experience');
+  const f = filters.find(f => f.label.includes('years'));
+  assert.ok(f, 'expected a years filter');
+  assert.strictEqual(f.status, 'fail');
+});
+
+test('no years filter when JD has no year requirement', () => {
+  const filters = detectHardFilters('Looking for a great developer', 'I have 5 years');
+  assert.ok(!filters.find(f => f.label.includes('years')), 'expected no years filter');
+});
+
+test('pass for degree when resume has required degree', () => {
+  const filters = detectHardFilters('Bachelor degree required', 'Bachelor of Science Computer Science');
+  const f = filters.find(f => f.label.toLowerCase().includes('degree'));
+  assert.ok(f, 'expected a degree filter');
+  assert.strictEqual(f.status, 'pass');
+});
+
+test('fail for degree when resume lacks it', () => {
+  const filters = detectHardFilters('Bachelor degree required', '5 years of hands-on experience');
+  const f = filters.find(f => f.label.toLowerCase().includes('degree'));
+  assert.ok(f, 'expected a degree filter');
+  assert.strictEqual(f.status, 'fail');
+});
+
+test('no degree filter when JD has no degree requirement', () => {
+  const filters = detectHardFilters('We value experience over credentials', 'some resume');
+  assert.ok(!filters.find(f => f.label.toLowerCase().includes('degree')), 'expected no degree filter');
+});
+
+test('check status for work authorization mention', () => {
+  const filters = detectHardFilters('Must be authorized to work in the US', 'Experienced developer');
+  const f = filters.find(f => f.label.toLowerCase().includes('work auth'));
+  assert.ok(f, 'expected work auth filter');
+  assert.strictEqual(f.status, 'check');
+});
+
+test('empty array when JD has no hard requirements', () => {
+  const filters = detectHardFilters('Great company culture, flexible hours', 'Experienced developer');
+  assert.deepStrictEqual(filters, []);
 });
 
 // --- Summary ---

@@ -286,6 +286,35 @@ function splitRequiredPreferred(jdText) {
   };
 }
 
+function detectHardFilters(jdText, resumeText) {
+  const jdLower = jdText.toLowerCase();
+  const resumeLower = resumeText.toLowerCase();
+  const filters = [];
+
+  const yearsMatch = jdLower.match(/(\d+)\+?\s*years?/);
+  if (yearsMatch) {
+    const required = parseInt(yearsMatch[1], 10);
+    const resumeMatches = resumeLower.match(/(\d+)\+?\s*years?/g) || [];
+    const maxFound = resumeMatches.reduce((max, m) => Math.max(max, parseInt(m, 10)), 0);
+    filters.push({ label: `${required}+ years experience`, status: maxFound >= required ? 'pass' : 'fail' });
+  }
+
+  const degreeKws = ['bachelor', 'master', 'mba', 'phd', 'doctorate', 'diploma', 'degree'];
+  if (degreeKws.some(d => jdLower.includes(d))) {
+    filters.push({
+      label: 'Degree requirement',
+      status: degreeKws.some(d => resumeLower.includes(d)) ? 'pass' : 'fail',
+    });
+  }
+
+  const authPhrases = ['authorized to work', 'visa sponsorship not provided', 'must be eligible', 'right to work'];
+  if (authPhrases.some(p => jdLower.includes(p))) {
+    filters.push({ label: 'Work authorization', status: 'check' });
+  }
+
+  return filters;
+}
+
 if (typeof module !== 'undefined') {
-  module.exports = { buildSynonymMap, extractKeywords, matchKeywords, generateSuggestions, detectSections, calculateExperienceFit, calculateWeightedScore, splitRequiredPreferred };
+  module.exports = { buildSynonymMap, extractKeywords, matchKeywords, generateSuggestions, detectSections, calculateExperienceFit, calculateWeightedScore, splitRequiredPreferred, detectHardFilters };
 }
