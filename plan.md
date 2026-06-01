@@ -66,16 +66,16 @@
 
 ---
 
-## Task 4: detectHardFilters
+## Task 4: detectHardFilters (with correctness fixes)
 
 **Status:** Completed
 
-**Approach:** Implement `detectHardFilters(jdText, resumeText)` function that detects hard requirements (years of experience, degree, work authorization) in JD and checks resume against them. Returns array of filter objects with label and status (pass/fail/check). Filters are omitted when condition doesn't apply.
+**Approach:** Implement `detectHardFilters(jdText, resumeText)` function that detects hard requirements (years of experience, degree, work authorization) in JD and checks resume against them. Returns array of filter objects with label and status (pass/fail/check). Fixed two correctness issues: (1) replaced substring matching on degree keywords with word-boundary regex to avoid false positives on "mastered", "master data", etc; (2) removed "must be eligible" from work auth phrases (too generic, matches non-auth contexts like "eligible for promotion").
 
 **Files to change:**
-- `ats.js` — add `detectHardFilters` function after `splitRequiredPreferred` and update module.exports
-- `ats.test.js` — update require line to include `detectHardFilters`, add 8 tests before "// --- Summary ---"
+- `ats.js` — add `detectHardFilters` function with regex-based degree detection and tightened auth phrases
+- `ats.test.js` — 8 tests for detectHardFilters plus 1 regression test for "mastered" false positive
 
-**Last session:** 2026-06-01 — TDD: added 8 failing tests (years pass/fail, degree pass/fail/no-filter, work auth check, empty array), implemented function; 62/62 tests passing
+**Last session:** 2026-06-01 — Fixed "master" substring false positives with word-boundary regex; removed generic "must be eligible" from authPhrases; added regression test; 69/69 tests passing
 
 **Spec:** task description in this session
