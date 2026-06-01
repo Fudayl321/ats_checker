@@ -31,3 +31,51 @@
 **Last session:** 2026-06-01 — full weighted formula implementation; 37/37 tests passing; XSS-safe rendering
 
 **Spec:** `docs/superpowers/specs/2026-06-01-weighted-ats-formula-design.md`
+
+---
+
+## Task 3: Update matchKeywords with synonym support
+
+**Status:** Completed
+
+**Approach:** Add `getSynonymsForKeyword()` helper function that returns all canonical and alias forms of a keyword. Update `matchKeywords()` to check all synonym variants and return a new `synonymHits` field containing keyword/matchedAs pairs when a match occurs via an alias.
+
+**Files to change:**
+- `ats.js` — add `getSynonymsForKeyword` helper, update `matchKeywords` to add `synonymHits` field to return object
+- `ats.test.js` — add 5 new synonym tests after existing matchKeywords tests
+
+**Last session:** 2026-06-01 — TDD approach: added 5 failing tests, implemented `getSynonymsForKeyword` and updated `matchKeywords`; 48/48 tests passing (original 43 + 5 new synonym tests)
+
+**Spec:** `docs/superpowers/plans/2026-06-01-weighted-ats-formula.md` (synonym support section)
+
+---
+
+## Task 3: splitRequiredPreferred
+
+**Status:** Completed
+
+**Approach:** Implement `splitRequiredPreferred(jdText)` function that parses JD text into required and preferred sections by detecting heading markers (Required/Must Have/Mandatory vs Preferred/Nice to Have/Bonus). Returns object with `required` and `preferred` arrays of extracted keywords.
+
+**Files to change:**
+- `ats.js` — add `splitRequiredPreferred` function and export it
+- `ats.test.js` — add 4 new tests before "// --- Summary ---"
+
+**Last session:** 2026-06-01 — TDD: added 4 failing tests (no section markers, Required/Preferred split, Must Have/Nice to Have split, empty input), implemented function; 53/53 tests passing
+
+**Spec:** task description in this session
+
+---
+
+## Task 4: detectHardFilters
+
+**Status:** Completed
+
+**Approach:** Implement `detectHardFilters(jdText, resumeText)` function that detects hard requirements (years of experience, degree, work authorization) in JD and checks resume against them. Returns array of filter objects with label and status (pass/fail/check). Filters are omitted when condition doesn't apply.
+
+**Files to change:**
+- `ats.js` — add `detectHardFilters` function after `splitRequiredPreferred` and update module.exports
+- `ats.test.js` — update require line to include `detectHardFilters`, add 8 tests before "// --- Summary ---"
+
+**Last session:** 2026-06-01 — TDD: added 8 failing tests (years pass/fail, degree pass/fail/no-filter, work auth check, empty array), implemented function; 62/62 tests passing
+
+**Spec:** task description in this session
