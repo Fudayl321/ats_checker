@@ -45,17 +45,20 @@ const STOP_WORDS = new Set([
   'identify','perform','become','participate','communicate','contribute','attend',
   'resolve','adhere','adapt','abreast','prepare','present','report','assist',
   'coordinate','maintain','handle','process','complete','update','schedule',
+  'providing','identifying','resolving','troubleshooting','solving',
 
   // Generic descriptors and adverbs
   'oriented','focused','driven','based','related','overall','written','verbal',
   'oral','clearly','accurately','properly','consistently','proactively','thoroughly',
   'proficient','successful','encouraged','paced','cross','self','detailed',
   'appropriate','appropriately','potential','internal','external','general',
+  'going','detail',
 
   // Generic JD nouns (not skills)
   'information','activities','tasks','satisfaction','commitment','willingness',
   'passion','career','trend','year','individuals','members','ability','summary',
   'resolution','templates','solutions','deliverables','requirements','specifications',
+  'expertise','technology','issues','candidates',
 ]);
 
 function buildSynonymMap() {
