@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { extractKeywords, matchKeywords, calculateScore, generateSuggestions } = require('./ats.js');
+const { extractKeywords, matchKeywords, calculateScore, generateSuggestions, detectSections } = require('./ats.js');
 
 let passed = 0;
 let failed = 0;
@@ -118,6 +118,39 @@ test('sorts by keyword frequency in requirements (most frequent first)', () => {
   const missing = ['rare', 'common'];
   const suggestions = generateSuggestions(missing, 'common common common rare');
   assert.ok(suggestions[0].includes('common'), `expected "common" first, got: ${suggestions[0]}`);
+});
+
+// --- detectSections ---
+console.log('\ndetectSections');
+
+test('detects experience section', () => {
+  const { found } = detectSections('Work Experience\nSoftware Engineer at Acme 2020-2023');
+  assert.ok(found.includes('hasExperience'), `expected hasExperience, got ${JSON.stringify(found)}`);
+});
+
+test('detects education section', () => {
+  const { found } = detectSections('Education\nBachelor of Science, Computer Science');
+  assert.ok(found.includes('hasEducation'), `expected hasEducation, got ${JSON.stringify(found)}`);
+});
+
+test('detects skills section', () => {
+  const { found } = detectSections('Skills\nJavaScript, React, Node.js');
+  assert.ok(found.includes('hasSkills'), `expected hasSkills, got ${JSON.stringify(found)}`);
+});
+
+test('detects dates', () => {
+  const { found } = detectSections('Software Engineer, Jan 2020 - Dec 2023');
+  assert.ok(found.includes('hasDates'), `expected hasDates, got ${JSON.stringify(found)}`);
+});
+
+test('detects bullet points', () => {
+  const { found } = detectSections('• Built microservices\n• Led team of 5');
+  assert.ok(found.includes('hasBullets'), `expected hasBullets, got ${JSON.stringify(found)}`);
+});
+
+test('returns count matching found array length', () => {
+  const { count, found } = detectSections('Experience\nEducation\nSkills');
+  assert.strictEqual(count, found.length, `count ${count} should equal found.length ${found.length}`);
 });
 
 // --- Summary ---

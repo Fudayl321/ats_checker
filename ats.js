@@ -63,6 +63,32 @@ function generateSuggestions(missingKeywords, requirementsText) {
     .map(kw => `Consider adding "${kw}" — it appears in the job requirements`);
 }
 
+function detectSections(resumeText) {
+  const text = resumeText.toLowerCase();
+  const lines = resumeText.split('\n').map(l => l.trim()).filter(l => l);
+
+  const checks = {
+    hasExperience: /experience|work history|employment/i.test(text),
+    hasEducation: /education|academic|qualification/i.test(text),
+    hasSkills: /skills|technical|competenc/i.test(text),
+    hasDates: /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|january|february|march|april|june|july|august|september|october|november|december|20\d\d|19\d\d)\b/i.test(text),
+    hasBullets: lines.some(l => /^[•\-\*]/.test(l)),
+    hasJobTitles: lines.some(l => {
+      const words = l.split(/\s+/);
+      return words.length >= 1 && words.length <= 6 && /^[A-Z]/.test(l);
+    }),
+    noGarbling: (() => {
+      const tokens = text.split(/\s+/).filter(t => t.length > 0);
+      if (tokens.length === 0) return false;
+      const realWords = tokens.filter(t => /^[a-z]{2,}$/.test(t));
+      return (realWords.length / tokens.length) > 0.70;
+    })(),
+  };
+
+  const found = Object.entries(checks).filter(([, v]) => v).map(([k]) => k);
+  return { count: found.length, found };
+}
+
 if (typeof module !== 'undefined') {
-  module.exports = { extractKeywords, matchKeywords, calculateScore, generateSuggestions };
+  module.exports = { extractKeywords, matchKeywords, calculateScore, generateSuggestions, detectSections };
 }
