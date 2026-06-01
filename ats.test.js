@@ -383,6 +383,13 @@ test('splits on "Must Have" and "Nice to Have"', () => {
   assert.ok(preferred.includes('graphql'), `expected graphql in preferred`);
 });
 
+test('content line with trigger word does not flip section', () => {
+  const jd = 'Preferred:\nGraphQL Redis\nExperience with Python is required for this role';
+  const { preferred } = splitRequiredPreferred(jd);
+  assert.ok(preferred.includes('graphql'), `expected graphql in preferred`);
+  assert.ok(preferred.includes('redis'), `expected redis in preferred`);
+});
+
 test('returns arrays for empty input', () => {
   const { required, preferred } = splitRequiredPreferred('');
   assert.ok(Array.isArray(required));

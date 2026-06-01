@@ -264,6 +264,7 @@ function calculateWeightedScore({ keywords, resumeText, jobTitle, jobRequirement
 function splitRequiredPreferred(jdText) {
   const requiredTriggers = /required|must have|minimum qualifications|you must|mandatory|essential/i;
   const preferredTriggers = /preferred|nice to have|bonus|plus if|desired|ideally|advantageous/i;
+  const headingMatch = /^(required|must have|minimum qualifications|you must|mandatory|essential|preferred|nice to have|bonus|plus if|desired|ideally|advantageous)[:\s]*$/i;
   const lines = jdText.split('\n');
   let currentSection = 'required';
   const requiredLines = [];
@@ -271,9 +272,10 @@ function splitRequiredPreferred(jdText) {
 
   for (const line of lines) {
     const trimmed = line.trim();
-    const isHeading = trimmed.length <= 80 && !/^[•\-\*]/.test(trimmed);
-    if (isHeading && requiredTriggers.test(trimmed)) currentSection = 'required';
-    else if (isHeading && preferredTriggers.test(trimmed)) currentSection = 'preferred';
+    if (headingMatch.test(trimmed)) {
+      if (requiredTriggers.test(trimmed)) currentSection = 'required';
+      else if (preferredTriggers.test(trimmed)) currentSection = 'preferred';
+    }
     if (currentSection === 'required') requiredLines.push(line);
     else preferredLines.push(line);
   }
