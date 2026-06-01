@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo [catchup] plan.md updated? If not, ask Claude to update it before closing."
+          }
+        ]
+      }
+    ]
+  }
+}

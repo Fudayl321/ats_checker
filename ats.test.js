@@ -1,0 +1,500 @@
+const assert = require('assert');
+const { buildSynonymMap, extractKeywords, matchKeywords, generateSuggestions, detectSections, calculateExperienceFit, calculateWeightedScore, splitRequiredPreferred, detectHardFilters, detectQuantification } = require('./ats.js');
+
+let passed = 0;
+let failed = 0;
+
+function test(name, fn) {
+  try {
+    fn();
+    console.log(`  ✅ ${name}`);
+    passed++;
+  } catch (e) {
+    console.log(`  ❌ ${name}: ${e.message}`);
+    failed++;
+  }
+}
+
+// --- extractKeywords ---
+console.log('\nextractKeywords');
+
+test('extracts single words and removes stop words', () => {
+  const kws = extractKeywords('experience with JavaScript and React');
+  assert.ok(kws.includes('javascript'), `expected "javascript", got ${JSON.stringify(kws)}`);
+  assert.ok(kws.includes('react'), `expected "react", got ${JSON.stringify(kws)}`);
+  assert.ok(!kws.includes('and'), 'should exclude stop word "and"');
+  assert.ok(!kws.includes('with'), 'should exclude stop word "with"');
+});
+
+test('extracts bigrams from consecutive non-stop words', () => {
+  const kws = extractKeywords('project management skills');
+  assert.ok(kws.includes('project management'), `expected bigram "project management", got ${JSON.stringify(kws)}`);
+});
+
+test('deduplicates keywords', () => {
+  const kws = extractKeywords('javascript javascript javascript');
+  const count = kws.filter(k => k === 'javascript').length;
+  assert.strictEqual(count, 1, `expected 1 occurrence, got ${count}`);
+});
+
+test('returns empty array for empty string', () => {
+  assert.deepStrictEqual(extractKeywords(''), []);
+});
+
+test('returns empty array for whitespace-only string', () => {
+  assert.deepStrictEqual(extractKeywords('   '), []);
+});
+
+test('filters out JD filler words', () => {
+  const kws = extractKeywords('We are looking for a great candidate to join our team and please ensure you apply now');
+  const fillers = ['looking','great','candidate','join','team','please','ensure','apply','now'];
+  fillers.forEach(w => assert.ok(!kws.includes(w), `"${w}" should be filtered out`));
+});
+
+test('splits hyphenated words and filters filler halves', () => {
+  const kws = extractKeywords('detail-oriented self-motivated fast-paced on-the-job');
+  const noise = ['detailoriented','selfmotivated','fastpaced','onthejob','oriented','self','paced','motivated'];
+  noise.forEach(w => assert.ok(!kws.includes(w), `"${w}" should not appear`));
+});
+
+// --- matchKeywords ---
+console.log('\nmatchKeywords');
+
+test('matches present keywords (case-insensitive)', () => {
+  const { matched, missing } = matchKeywords(['javascript', 'python'], 'I know JavaScript and Python well');
+  assert.ok(matched.includes('javascript'), 'should match "javascript"');
+  assert.ok(matched.includes('python'), 'should match "python"');
+  assert.strictEqual(missing.length, 0, `expected no missing, got ${JSON.stringify(missing)}`);
+});
+
+test('flags absent keywords as missing', () => {
+  const { matched, missing } = matchKeywords(['kubernetes', 'terraform'], 'I know JavaScript');
+  assert.strictEqual(matched.length, 0, `expected no matched, got ${JSON.stringify(matched)}`);
+  assert.ok(missing.includes('kubernetes'), 'should flag "kubernetes" as missing');
+  assert.ok(missing.includes('terraform'), 'should flag "terraform" as missing');
+});
+
+test('matches plural form via singular normalisation', () => {
+  const { matched } = matchKeywords(['skill'], 'I have many skills and abilities');
+  assert.ok(matched.includes('skill'), 'should match plural "skills" against keyword "skill"');
+});
+
+test('returns empty matched and missing for empty keywords array', () => {
+  const { matched, missing } = matchKeywords([], 'any resume text');
+  assert.deepStrictEqual(matched, []);
+  assert.deepStrictEqual(missing, []);
+});
+
+test('matches via synonym: JD has "javascript", resume has "JS"', () => {
+  const { matched, synonymHits } = matchKeywords(['javascript'], 'I work with JS daily');
+  assert.ok(matched.includes('javascript'), `expected javascript matched via JS, got ${JSON.stringify(matched)}`);
+  assert.ok(synonymHits.some(h => h.keyword === 'javascript' && h.matchedAs === 'js'), `expected synonymHit, got ${JSON.stringify(synonymHits)}`);
+});
+
+test('matches via synonym: JD has "kubernetes", resume has "k8s"', () => {
+  const { matched } = matchKeywords(['kubernetes'], 'experience with k8s cluster management');
+  assert.ok(matched.includes('kubernetes'), `expected kubernetes matched via k8s`);
+});
+
+test('matches via synonym: JD has "machine learning", resume has "ML"', () => {
+  const { matched } = matchKeywords(['machine learning'], 'Built ML pipelines for production');
+  assert.ok(matched.includes('machine learning'), `expected match via ML`);
+});
+
+test('synonymHits is empty when no alias used', () => {
+  const { synonymHits } = matchKeywords(['python'], 'I know Python well');
+  assert.deepStrictEqual(synonymHits, []);
+});
+
+test('synonymHits field present on empty keyword input', () => {
+  const result = matchKeywords([], 'any text');
+  assert.ok('synonymHits' in result, 'expected synonymHits field');
+  assert.deepStrictEqual(result.synonymHits, []);
+});
+
+test('short alias does not match as substring of unrelated word', () => {
+  const { matched } = matchKeywords(['angular'], 'training engineers with interesting backgrounds');
+  assert.deepStrictEqual(matched, [], `'ng' should not match inside "training"/"interesting", got ${JSON.stringify(matched)}`);
+});
+
+// --- generateSuggestions ---
+console.log('\ngenerateSuggestions');
+
+test('returns at most 5 suggestions', () => {
+  const s = generateSuggestions({ requiredMissing: ['java','kubernetes','docker','terraform','python','golang'], preferredMissing: ['rust'], qScore: 100, hardFilters: [] });
+  assert.ok(s.length <= 5, `expected ≤5, got ${s.length}`);
+});
+
+test('suggestion text contains the missing required keyword', () => {
+  const s = generateSuggestions({ requiredMissing: ['kubernetes'], preferredMissing: [], qScore: 100, hardFilters: [] });
+  assert.ok(s[0].toLowerCase().includes('kubernetes'), `got: ${s[0]}`);
+});
+
+test('returns empty array when nothing missing and qScore high', () => {
+  assert.deepStrictEqual(generateSuggestions({ requiredMissing: [], preferredMissing: [], qScore: 100, hardFilters: [] }), []);
+});
+
+test('surfaces hard filter fail as first suggestion', () => {
+  const s = generateSuggestions({ requiredMissing: [], preferredMissing: [], qScore: 100, hardFilters: [{ label: '5+ years experience', status: 'fail' }] });
+  assert.ok(s[0].toLowerCase().includes('5+ years experience'), `got: ${s[0]}`);
+});
+
+test('includes quantification suggestion when qScore < 40', () => {
+  const s = generateSuggestions({ requiredMissing: [], preferredMissing: [], qScore: 20, hardFilters: [] });
+  assert.ok(s.some(x => x.toLowerCase().includes('measurable')), `got: ${JSON.stringify(s)}`);
+});
+
+test('labels preferred missing keywords differently from required', () => {
+  const s = generateSuggestions({ requiredMissing: [], preferredMissing: ['graphql'], qScore: 100, hardFilters: [] });
+  assert.ok(s.some(x => x.toLowerCase().includes('preferred')), `got: ${JSON.stringify(s)}`);
+});
+
+// --- detectSections ---
+console.log('\ndetectSections');
+
+test('detects experience section', () => {
+  const { found } = detectSections('Work Experience\nSoftware Engineer at Acme 2020-2023');
+  assert.ok(found.includes('hasExperience'), `expected hasExperience, got ${JSON.stringify(found)}`);
+});
+
+test('detects education section', () => {
+  const { found } = detectSections('Education\nBachelor of Science, Computer Science');
+  assert.ok(found.includes('hasEducation'), `expected hasEducation, got ${JSON.stringify(found)}`);
+});
+
+test('detects skills section', () => {
+  const { found } = detectSections('Skills\nJavaScript, React, Node.js');
+  assert.ok(found.includes('hasSkills'), `expected hasSkills, got ${JSON.stringify(found)}`);
+});
+
+test('detects dates', () => {
+  const { found } = detectSections('Software Engineer, Jan 2020 - Dec 2023');
+  assert.ok(found.includes('hasDates'), `expected hasDates, got ${JSON.stringify(found)}`);
+});
+
+test('detects bullet points', () => {
+  const { found } = detectSections('• Built microservices\n• Led team of 5');
+  assert.ok(found.includes('hasBullets'), `expected hasBullets, got ${JSON.stringify(found)}`);
+});
+
+test('returns count matching found array length', () => {
+  const { count, found } = detectSections('Experience\nEducation\nSkills');
+  assert.strictEqual(count, found.length, `count ${count} should equal found.length ${found.length}`);
+});
+
+test('detects job titles (short capitalised line)', () => {
+  const { found } = detectSections('Software Engineer\nBuilt APIs and led projects.');
+  assert.ok(found.includes('hasJobTitles'), `expected hasJobTitles, got ${JSON.stringify(found)}`);
+});
+
+test('passes noGarbling check for clean text', () => {
+  const { found } = detectSections('I am a software engineer with experience in building web applications and services');
+  assert.ok(found.includes('noGarbling'), `expected noGarbling, got ${JSON.stringify(found)}`);
+});
+
+test('fails noGarbling check for garbled text', () => {
+  const { found } = detectSections('₁₂₃ ╗ ⌂ ╬ ║ ║ ╦ ╔ ≈ √ ≤ ≥ ≠ ∞ ∑ ∏ ∂');
+  assert.ok(!found.includes('noGarbling'), `expected noGarbling to fail on garbled text, got ${JSON.stringify(found)}`);
+});
+
+// --- calculateExperienceFit ---
+console.log('\ncalculateExperienceFit');
+
+test('education check passes when resume has matching degree keyword', () => {
+  const { passed } = calculateExperienceFit(
+    'Bachelor of Science in Computer Science',
+    'Required: bachelor degree in relevant field',
+    'Software Engineer'
+  );
+  assert.ok(passed.includes('education'), `expected education in passed, got ${JSON.stringify(passed)}`);
+});
+
+test('education check passes when JD has no degree requirement', () => {
+  const { passed } = calculateExperienceFit(
+    'I worked as a developer for 5 years',
+    'Looking for an experienced developer',
+    'Developer'
+  );
+  assert.ok(passed.includes('education'), `expected education to pass when JD has no degree req`);
+});
+
+test('years check passes when resume meets JD requirement', () => {
+  const { passed } = calculateExperienceFit(
+    'I have 7 years of experience in software development',
+    'Minimum 5 years of experience required',
+    'Engineer'
+  );
+  assert.ok(passed.includes('years'), `expected years in passed, got ${JSON.stringify(passed)}`);
+});
+
+test('years check fails when resume years fall short', () => {
+  const { passed } = calculateExperienceFit(
+    'I have 2 years of experience',
+    'Minimum 5 years of experience required',
+    'Engineer'
+  );
+  assert.ok(!passed.includes('years'), `expected years to fail, got ${JSON.stringify(passed)}`);
+});
+
+test('years check passes by default when JD has no year requirement', () => {
+  const { passed } = calculateExperienceFit(
+    'I have been working in tech',
+    'Looking for a skilled developer',
+    'Developer'
+  );
+  assert.ok(passed.includes('years'), `expected years to pass by default`);
+});
+
+test('title check passes when job title word appears in resume', () => {
+  const { passed } = calculateExperienceFit(
+    'Senior Software Engineer at Acme Corp',
+    'We need an engineer with React skills',
+    'Software Engineer'
+  );
+  assert.ok(passed.includes('title'), `expected title in passed, got ${JSON.stringify(passed)}`);
+});
+
+test('score is 0 to 100', () => {
+  const { score } = calculateExperienceFit('no relevant content at all xyz', 'phd required 10 years machine learning kubernetes', 'Quantum Physicist');
+  assert.ok(score >= 0 && score <= 100, `expected 0–100, got ${score}`);
+});
+
+test('education check fails when JD requires degree and resume has none', () => {
+  const { passed } = calculateExperienceFit(
+    'I have 5 years of experience building software applications',
+    'Bachelor degree required for this position',
+    'Engineer'
+  );
+  assert.ok(!passed.includes('education'), `expected education to fail, got ${JSON.stringify(passed)}`);
+});
+
+test('tools check passes when resume has 30%+ keyword overlap with JD', () => {
+  const { passed } = calculateExperienceFit(
+    'I have JavaScript, React, Node.js, developer experience building web applications',
+    'Looking for JavaScript React developer with Node.js experience',
+    'Developer'
+  );
+  assert.ok(passed.includes('tools'), `expected tools in passed, got ${JSON.stringify(passed)}`);
+});
+
+test('industry check passes when at least one JD industry noun appears in resume', () => {
+  const { passed } = calculateExperienceFit(
+    'Experienced in healthcare data systems and patient management',
+    'Looking for developer with healthcare experience in clinical systems',
+    'Developer'
+  );
+  assert.ok(passed.includes('industry'), `expected industry in passed, got ${JSON.stringify(passed)}`);
+});
+
+// --- calculateWeightedScore ---
+console.log('\ncalculateWeightedScore');
+
+test('returns total between 0 and 100', () => {
+  const result = calculateWeightedScore({
+    requiredKeywords: ['javascript', 'react'], preferredKeywords: [],
+    resumeText: 'I know JavaScript and React. Experience section. Education section. Skills section.',
+    jobTitle: 'Frontend Developer',
+    jobRequirements: 'javascript react developer 2 years experience',
+  });
+  assert.ok(result.total >= 0 && result.total <= 100, `got ${result.total}`);
+});
+
+test('returns k, s, e, q sub-scores', () => {
+  const result = calculateWeightedScore({
+    requiredKeywords: ['javascript'], preferredKeywords: [],
+    resumeText: 'JavaScript developer', jobTitle: 'Developer',
+    jobRequirements: 'javascript developer',
+  });
+  ['k','s','e','q','total'].forEach(key => assert.ok(key in result, `missing ${key}`));
+});
+
+test('returns requiredMatched, requiredMissing, preferredMatched, preferredMissing', () => {
+  const result = calculateWeightedScore({
+    requiredKeywords: ['javascript'], preferredKeywords: ['docker'],
+    resumeText: 'JavaScript developer', jobTitle: 'Developer',
+    jobRequirements: 'javascript docker developer',
+  });
+  assert.ok(result.requiredMatched.includes('javascript'));
+  assert.ok(result.preferredMissing.includes('docker'));
+});
+
+test('perfect resume scores at most 96', () => {
+  const resume = 'Experience\nEducation\nSkills\nJan 2020\n• Built systems\nSoftware Engineer\njavascript react python many real words to pass garbling check. Increased revenue 30%, reduced costs 20%, managed 5 engineers, saved $50,000.';
+  const result = calculateWeightedScore({
+    requiredKeywords: ['javascript', 'react', 'python'], preferredKeywords: [],
+    resumeText: resume, jobTitle: 'Software Engineer',
+    jobRequirements: 'javascript react python software engineer experience required',
+  });
+  assert.ok(result.total <= 96, `expected ≤96, got ${result.total}`);
+});
+
+test('all-zero inputs score 0', () => {
+  const result = calculateWeightedScore({ requiredKeywords: [], preferredKeywords: [], resumeText: '', jobTitle: '', jobRequirements: '' });
+  assert.strictEqual(result.total, 0);
+});
+
+test('applies formula: total = ((k*0.50 + s*0.15 + e*0.20 + q*0.15) * 0.96)', () => {
+  const result = calculateWeightedScore({
+    requiredKeywords: ['javascript'], preferredKeywords: [],
+    resumeText: 'Experience\nEducation\nSkills\nJan 2020 - Dec 2022\n• bullet point here\nSoftware Engineer role\nI have javascript skills and many real dictionary words present in this document',
+    jobTitle: 'Engineer', jobRequirements: 'javascript engineer experience needed',
+  });
+  const expected = Math.min(100, Math.round(((result.k * 0.50) + (result.s * 0.15) + (result.e * 0.20) + (result.q * 0.15)) * 0.96));
+  assert.strictEqual(result.total, expected, `formula mismatch: got ${result.total}, expected ${expected}`);
+});
+
+// --- buildSynonymMap ---
+console.log('\nbuildSynonymMap');
+
+test('js maps to javascript', () => {
+  const map = buildSynonymMap();
+  assert.strictEqual(map['js'], 'javascript');
+});
+
+test('ml maps to machine learning', () => {
+  const map = buildSynonymMap();
+  assert.strictEqual(map['ml'], 'machine learning');
+});
+
+test('k8s maps to kubernetes', () => {
+  const map = buildSynonymMap();
+  assert.strictEqual(map['k8s'], 'kubernetes');
+});
+
+test('returns at least 30 pairs', () => {
+  const map = buildSynonymMap();
+  assert.ok(Object.keys(map).length >= 30, `expected ≥30 pairs, got ${Object.keys(map).length}`);
+});
+
+// --- splitRequiredPreferred ---
+console.log('\nsplitRequiredPreferred');
+
+test('all keywords go to required when no section markers found', () => {
+  const { required, preferred } = splitRequiredPreferred('Python JavaScript Docker experience');
+  assert.ok(required.includes('python'), `expected python in required`);
+  assert.deepStrictEqual(preferred, [], `expected empty preferred`);
+});
+
+test('splits on "Required:" and "Preferred:" headers', () => {
+  const jd = 'Required:\nPython Docker\nPreferred:\nKubernetes Terraform';
+  const { required, preferred } = splitRequiredPreferred(jd);
+  assert.ok(required.includes('python'), `expected python in required`);
+  assert.ok(preferred.includes('kubernetes'), `expected kubernetes in preferred`);
+  assert.ok(!required.includes('kubernetes'), `kubernetes should not be in required`);
+});
+
+test('splits on "Must Have" and "Nice to Have"', () => {
+  const jd = 'Must Have\nReact TypeScript\nNice to Have\nGraphQL Redis';
+  const { required, preferred } = splitRequiredPreferred(jd);
+  assert.ok(required.includes('react'), `expected react in required`);
+  assert.ok(preferred.includes('graphql'), `expected graphql in preferred`);
+});
+
+test('content line with trigger word does not flip section', () => {
+  const jd = 'Preferred:\nGraphQL Redis\nExperience with Python is required for this role';
+  const { preferred } = splitRequiredPreferred(jd);
+  assert.ok(preferred.includes('graphql'), `expected graphql in preferred`);
+  assert.ok(preferred.includes('redis'), `expected redis in preferred`);
+});
+
+test('returns arrays for empty input', () => {
+  const { required, preferred } = splitRequiredPreferred('');
+  assert.ok(Array.isArray(required));
+  assert.ok(Array.isArray(preferred));
+});
+
+// --- detectHardFilters ---
+console.log('\ndetectHardFilters');
+
+test('pass for years when resume meets requirement', () => {
+  const filters = detectHardFilters('Minimum 3+ years experience required', 'I have 5 years of experience');
+  const f = filters.find(f => f.label.includes('years'));
+  assert.ok(f, 'expected a years filter');
+  assert.strictEqual(f.status, 'pass');
+});
+
+test('fail for years when resume falls short', () => {
+  const filters = detectHardFilters('Minimum 5+ years required', 'I have 2 years of experience');
+  const f = filters.find(f => f.label.includes('years'));
+  assert.ok(f, 'expected a years filter');
+  assert.strictEqual(f.status, 'fail');
+});
+
+test('no years filter when JD has no year requirement', () => {
+  const filters = detectHardFilters('Looking for a great developer', 'I have 5 years');
+  assert.ok(!filters.find(f => f.label.includes('years')), 'expected no years filter');
+});
+
+test('pass for degree when resume has required degree', () => {
+  const filters = detectHardFilters('Bachelor degree required', 'Bachelor of Science Computer Science');
+  const f = filters.find(f => f.label.toLowerCase().includes('degree'));
+  assert.ok(f, 'expected a degree filter');
+  assert.strictEqual(f.status, 'pass');
+});
+
+test('fail for degree when resume lacks it', () => {
+  const filters = detectHardFilters('Bachelor degree required', '5 years of hands-on experience');
+  const f = filters.find(f => f.label.toLowerCase().includes('degree'));
+  assert.ok(f, 'expected a degree filter');
+  assert.strictEqual(f.status, 'fail');
+});
+
+test('no degree filter when JD has no degree requirement', () => {
+  const filters = detectHardFilters('We value experience over credentials', 'some resume');
+  assert.ok(!filters.find(f => f.label.toLowerCase().includes('degree')), 'expected no degree filter');
+});
+
+test('check status for work authorization mention', () => {
+  const filters = detectHardFilters('Must be authorized to work in the US', 'Experienced developer');
+  const f = filters.find(f => f.label.toLowerCase().includes('work auth'));
+  assert.ok(f, 'expected work auth filter');
+  assert.strictEqual(f.status, 'check');
+});
+
+test('empty array when JD has no hard requirements', () => {
+  const filters = detectHardFilters('Great company culture, flexible hours', 'Experienced developer');
+  assert.deepStrictEqual(filters, []);
+});
+
+test('no degree filter for "mastered" (avoids false positive on past tense)', () => {
+  const filters = detectHardFilters('Candidates should have mastered Python and data pipelines', 'some resume');
+  assert.ok(!filters.find(f => f.label.toLowerCase().includes('degree')), 'expected no degree filter for "mastered" as past tense verb');
+});
+
+// --- detectQuantification ---
+console.log('\ndetectQuantification');
+
+test('score 0 and count 0 for no metrics', () => {
+  const { score, count } = detectQuantification('Experienced software engineer with skills in development');
+  assert.strictEqual(count, 0);
+  assert.strictEqual(score, 0);
+});
+
+test('detects percentage metrics', () => {
+  const { count } = detectQuantification('Improved performance by 40% and reduced errors by 15%');
+  assert.ok(count >= 2, `expected ≥2, got ${count}`);
+});
+
+test('detects dollar amounts', () => {
+  const { count } = detectQuantification('Generated $500,000 in new revenue');
+  assert.ok(count >= 1, `expected ≥1, got ${count}`);
+});
+
+test('detects headcount metrics', () => {
+  const { count } = detectQuantification('Managed a team of 8 engineers across 3 projects');
+  assert.ok(count >= 1, `expected ≥1, got ${count}`);
+});
+
+test('score caps at 100 for 5+ metrics', () => {
+  const { score } = detectQuantification('Grew revenue 30%, reduced costs 20%, managed 10 engineers, saved $50,000, improved uptime 15%, led 4 projects');
+  assert.strictEqual(score, 100);
+});
+
+test('returns score and count fields', () => {
+  const result = detectQuantification('Any text');
+  assert.ok('score' in result && 'count' in result);
+});
+
+// --- Summary ---
+console.log(`\n${passed} passed, ${failed} failed\n`);
+if (failed > 0) process.exit(1);
