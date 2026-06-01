@@ -34,7 +34,7 @@
 
 ---
 
-## Task 3: Update matchKeywords with synonym support
+## Task 2b: Update matchKeywords with synonym support
 
 **Status:** Completed
 
@@ -111,3 +111,30 @@
 **Last session:** 2026-06-01 — TDD: replaced tests (4 -> 6, +2 net), implemented new function signature and logic; 71/71 tests passing (69 baseline + 2 new)
 
 **Spec:** task description in this session
+
+---
+
+## Task 7: Update calculateWeightedScore
+
+**Status:** Completed
+
+**Approach:** New signature uses `requiredKeywords`/`preferredKeywords` instead of `keywords`. New formula: `((K*0.50) + (S*0.15) + (E*0.20) + (Q*0.15)) * 0.96`. K sub-score is `rk*0.70 + pk*0.30` (required/preferred weighted blend). Returns full match detail fields: `requiredMatched`, `requiredMissing`, `preferredMatched`, `preferredMissing`, `synonymHits`.
+
+**Files to change:**
+- `ats.js` — replaced `calculateWeightedScore` with new signature and formula
+- `ats.test.js` — replaced 5 old tests with 6 new ones covering new signature, Q sub-score, and formula
+
+**Last session:** 2026-06-01 — TDD: replaced 5 tests (5 fail), implemented new function; 72/72 tests passing
+
+---
+
+## Task 8: Update index.html results panel
+
+**Status:** Completed
+
+**Approach:** UI-only update to wire in all new ats.js exports — hard filters panel, at-risk banner, 4 sub-score cards (K/S/E/Q), required/preferred keyword split with grey pills for preferred-missing, and synonym arrow pills.
+
+**Files to change:**
+- `index.html` — new CSS, updated results HTML, updated DOM refs, new click handler, new renderResults function
+
+**Last session:** 2026-06-01 — Added hard filters panel, at-risk banner, 4th sub-score card (Quantification), required/preferred keyword sections with grey pills, synonym arrow pills; 72/72 tests passing

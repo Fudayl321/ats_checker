@@ -286,6 +286,7 @@ function calculateWeightedScore({ requiredKeywords = [], preferredKeywords = [],
 }
 
 function splitRequiredPreferred(jdText) {
+  if (!jdText) return { required: [], preferred: [] };
   const requiredTriggers = /required|must have|minimum qualifications|you must|mandatory|essential/i;
   const preferredTriggers = /preferred|nice to have|bonus|plus if|desired|ideally|advantageous/i;
   const headingMatch = /^(required|must have|minimum qualifications|you must|mandatory|essential|preferred|nice to have|bonus|plus if|desired|ideally|advantageous)[:\s]*$/i;
@@ -311,6 +312,7 @@ function splitRequiredPreferred(jdText) {
 }
 
 function detectHardFilters(jdText, resumeText) {
+  if (!jdText || !resumeText) return [];
   const jdLower = jdText.toLowerCase();
   const resumeLower = resumeText.toLowerCase();
   const filters = [];

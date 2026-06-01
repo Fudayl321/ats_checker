@@ -418,17 +418,23 @@
       showResults('loading');
       await new Promise(r => setTimeout(r, 50));
 
-      const requirements = jobReqs.value;
-      const jobTitle = jobTitleInput.value;
-      const { required: requiredKeywords, preferred: preferredKeywords } = splitRequiredPreferred(requirements);
-      const hardFilters = detectHardFilters(requirements, resumeText);
-      const { total, k, s, e, q, requiredMatched, requiredMissing, preferredMatched, preferredMissing, synonymHits } =
-        calculateWeightedScore({ requiredKeywords, preferredKeywords, resumeText, jobTitle, jobRequirements: requirements });
-      const suggestions = generateSuggestions({ requiredMissing, preferredMissing, qScore: q, hardFilters });
+      try {
+        const requirements = jobReqs.value;
+        const jobTitle = jobTitleInput.value;
+        const { required: requiredKeywords, preferred: preferredKeywords } = splitRequiredPreferred(requirements);
+        const hardFilters = detectHardFilters(requirements, resumeText);
+        const { total, k, s, e, q, requiredMatched, requiredMissing, preferredMatched, preferredMissing, synonymHits } =
+          calculateWeightedScore({ requiredKeywords, preferredKeywords, resumeText, jobTitle, jobRequirements: requirements });
+        const suggestions = generateSuggestions({ requiredMissing, preferredMissing, qScore: q, hardFilters });
 
-      renderResults({ score: total, k, s, e, q, requiredMatched, requiredMissing, preferredMatched, preferredMissing, synonymHits, suggestions, hardFilters });
-      showResults('content');
-      analyzeBtn.disabled = false;
+        renderResults({ score: total, k, s, e, q, requiredMatched, requiredMissing, preferredMatched, preferredMissing, synonymHits, suggestions, hardFilters });
+        showResults('content');
+      } catch (err) {
+        showError('Analysis failed. Please try again.');
+        showResults('empty');
+      } finally {
+        analyzeBtn.disabled = false;
+      }
     });
 
     function renderResults({ score, k, s, e, q, requiredMatched, requiredMissing, preferredMatched, preferredMissing, synonymHits, suggestions, hardFilters }) {
