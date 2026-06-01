@@ -1,4 +1,5 @@
 const STOP_WORDS = new Set([
+  // Articles, conjunctions, prepositions
   'the','and','a','an','to','in','of','for','with','is','are','that','this',
   'it','be','as','at','by','we','you','or','on','not','but','from','have',
   'has','will','can','your','our','their','its','was','were','been','being',
@@ -6,6 +7,39 @@ const STOP_WORDS = new Set([
   'when','where','how','all','any','both','each','more','most','other','some',
   'such','than','then','these','those','up','out','no','only','same','so',
   'over','also','well','just','should','must','may','might','would','could',
+  'per','via','yet','still','even','among','across','within','through','upon',
+  'whether','while','although','since','until','unless','however','therefore',
+
+  // Quantity / degree words
+  'very','much','many','several','various','every','few','lot','lots','enough',
+  'quite','rather','almost','nearly','highly','fully','truly','really','simply',
+  'easily','quickly','efficiently','effectively','directly','actively',
+
+  // Common filler adjectives (not skills)
+  'good','great','nice','big','small','new','old','own','real','true',
+  'full','whole','main','key','top','best','high','low','right','left',
+  'strong','ideal','perfect','excellent','outstanding','exceptional','dynamic',
+  'exciting','innovative','fast','growing','leading','established','motivated',
+  'passionate','dedicated','talented','skilled','experienced','qualified',
+
+  // JD-specific filler verbs
+  'looking','seeking','ensure','please','start','make','join','help','need',
+  'use','using','provide','support','apply','come','take','bring','put','set',
+  'try','keep','let','give','get','got','want','like','love','know','see',
+  'say','tell','ask','show','include','require','offer','drive','able','go',
+
+  // JD context nouns (not skills)
+  'role','team','company','opportunity','position','candidate','applicant',
+  'employer','employee','business','organization','department','environment',
+  'culture','mission','vision','value','values','goal','goals','responsibility',
+  'responsibilities','benefit','benefits','package','salary','compensation',
+
+  // Tense / status markers
+  'now','today','soon','current','currently','recent','recently','previously',
+  'ongoing','immediate','immediately','asap',
+
+  // Soft filler often appearing in JDs
+  'etc','eg','ie','plus','bonus','preferred','required','desired','optional',
 ]);
 
 function extractKeywords(text) {

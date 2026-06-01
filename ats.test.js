@@ -45,6 +45,12 @@ test('returns empty array for whitespace-only string', () => {
   assert.deepStrictEqual(extractKeywords('   '), []);
 });
 
+test('filters out JD filler words', () => {
+  const kws = extractKeywords('We are looking for a great candidate to join our team and please ensure you apply now');
+  const fillers = ['looking','great','candidate','join','team','please','ensure','apply','now'];
+  fillers.forEach(w => assert.ok(!kws.includes(w), `"${w}" should be filtered out`));
+});
+
 // --- matchKeywords ---
 console.log('\nmatchKeywords');
 
