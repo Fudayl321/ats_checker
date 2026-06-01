@@ -48,11 +48,6 @@ function matchKeywords(keywords, resumeText) {
   return { matched, missing };
 }
 
-function calculateScore(matchedCount, totalCount) {
-  if (totalCount === 0) return 0;
-  return Math.round((matchedCount / totalCount) * 100);
-}
-
 function generateSuggestions(missingKeywords, requirementsText) {
   if (!missingKeywords.length) return [];
   const reqLower = requirementsText.toLowerCase();
@@ -142,6 +137,22 @@ function calculateExperienceFit(resumeText, jobRequirements, jobTitle) {
   return { score: Math.round((passed.length / 5) * 100), passed };
 }
 
+function calculateWeightedScore({ keywords, resumeText, jobTitle, jobRequirements }) {
+  if (!resumeText || !jobRequirements) return { total: 0, k: 0, s: 0, e: 0 };
+
+  const { matched } = matchKeywords(keywords, resumeText);
+  const k = keywords.length === 0 ? 0 : Math.round((matched.length / keywords.length) * 100);
+
+  const { count: sCount } = detectSections(resumeText);
+  const s = Math.round((sCount / 7) * 100);
+
+  const { score: e } = calculateExperienceFit(resumeText, jobRequirements, jobTitle);
+
+  const total = Math.min(100, Math.round(((k * 0.60) + (s * 0.20) + (e * 0.20)) * 0.96));
+
+  return { total, k, s, e };
+}
+
 if (typeof module !== 'undefined') {
-  module.exports = { extractKeywords, matchKeywords, calculateScore, generateSuggestions, detectSections, calculateExperienceFit };
+  module.exports = { extractKeywords, matchKeywords, generateSuggestions, detectSections, calculateExperienceFit, calculateWeightedScore };
 }

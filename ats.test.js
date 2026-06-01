@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { extractKeywords, matchKeywords, calculateScore, generateSuggestions, detectSections, calculateExperienceFit } = require('./ats.js');
+const { extractKeywords, matchKeywords, generateSuggestions, detectSections, calculateExperienceFit, calculateWeightedScore } = require('./ats.js');
 
 let passed = 0;
 let failed = 0;
@@ -71,29 +71,6 @@ test('returns empty matched and missing for empty keywords array', () => {
   const { matched, missing } = matchKeywords([], 'any resume text');
   assert.deepStrictEqual(matched, []);
   assert.deepStrictEqual(missing, []);
-});
-
-// --- calculateScore ---
-console.log('\ncalculateScore');
-
-test('returns 100 when all keywords matched', () => {
-  assert.strictEqual(calculateScore(10, 10), 100);
-});
-
-test('returns 0 when no keywords matched', () => {
-  assert.strictEqual(calculateScore(0, 10), 0);
-});
-
-test('returns 0 when total is 0 (no division by zero)', () => {
-  assert.strictEqual(calculateScore(0, 0), 0);
-});
-
-test('rounds to nearest integer', () => {
-  assert.strictEqual(calculateScore(1, 3), 33);
-});
-
-test('returns 50 for half matched', () => {
-  assert.strictEqual(calculateScore(5, 10), 50);
 });
 
 // --- generateSuggestions ---
@@ -255,6 +232,64 @@ test('industry check passes when at least one JD industry noun appears in resume
     'Developer'
   );
   assert.ok(passed.includes('industry'), `expected industry in passed, got ${JSON.stringify(passed)}`);
+});
+
+// --- calculateWeightedScore ---
+console.log('\ncalculateWeightedScore');
+
+test('returns total between 0 and 100', () => {
+  const result = calculateWeightedScore({
+    keywords: ['javascript', 'react'],
+    resumeText: 'I know JavaScript and React. Experience section. Education section. Skills section.',
+    jobTitle: 'Frontend Developer',
+    jobRequirements: 'Looking for javascript react developer with 2 years experience'
+  });
+  assert.ok(result.total >= 0 && result.total <= 100, `expected 0–100, got ${result.total}`);
+});
+
+test('returns k, s, e sub-scores', () => {
+  const result = calculateWeightedScore({
+    keywords: ['javascript'],
+    resumeText: 'JavaScript developer',
+    jobTitle: 'Developer',
+    jobRequirements: 'javascript developer'
+  });
+  assert.ok('k' in result, 'missing k');
+  assert.ok('s' in result, 'missing s');
+  assert.ok('e' in result, 'missing e');
+  assert.ok('total' in result, 'missing total');
+});
+
+test('perfect resume scores at most 96 (buffer applied)', () => {
+  const resume = 'Experience\nEducation\nSkills\nJan 2020\n• bullet\nSoftware Engineer role\nI know javascript react python docker kubernetes and more real words here to pass garbling check with many dictionary words present throughout the document content section';
+  const result = calculateWeightedScore({
+    keywords: ['javascript', 'react', 'python'],
+    resumeText: resume,
+    jobTitle: 'Software Engineer',
+    jobRequirements: 'javascript react python software engineer experience required'
+  });
+  assert.ok(result.total <= 96, `expected ≤96 due to 0.96 buffer, got ${result.total}`);
+});
+
+test('all-zero inputs score 0', () => {
+  const result = calculateWeightedScore({
+    keywords: [],
+    resumeText: '',
+    jobTitle: '',
+    jobRequirements: ''
+  });
+  assert.strictEqual(result.total, 0);
+});
+
+test('applies formula: total ≈ ((k*0.60 + s*0.20 + e*0.20) * 0.96)', () => {
+  const result = calculateWeightedScore({
+    keywords: ['javascript'],
+    resumeText: 'Experience\nEducation\nSkills\nJan 2020 - Dec 2022\n• bullet point here\nSoftware Engineer role\nI have javascript skills and many more real dictionary words present in this document',
+    jobTitle: 'Engineer',
+    jobRequirements: 'javascript engineer experience needed'
+  });
+  const expected = Math.min(100, Math.round(((result.k * 0.60) + (result.s * 0.20) + (result.e * 0.20)) * 0.96));
+  assert.strictEqual(result.total, expected, `formula mismatch: got ${result.total}, expected ${expected}`);
 });
 
 // --- Summary ---
