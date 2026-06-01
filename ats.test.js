@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { extractKeywords, matchKeywords, calculateScore, generateSuggestions, detectSections } = require('./ats.js');
+const { extractKeywords, matchKeywords, calculateScore, generateSuggestions, detectSections, calculateExperienceFit } = require('./ats.js');
 
 let passed = 0;
 let failed = 0;
@@ -166,6 +166,68 @@ test('passes noGarbling check for clean text', () => {
 test('fails noGarbling check for garbled text', () => {
   const { found } = detectSections('₁₂₃ ╗ ⌂ ╬ ║ ║ ╦ ╔ ≈ √ ≤ ≥ ≠ ∞ ∑ ∏ ∂');
   assert.ok(!found.includes('noGarbling'), `expected noGarbling to fail on garbled text, got ${JSON.stringify(found)}`);
+});
+
+// --- calculateExperienceFit ---
+console.log('\ncalculateExperienceFit');
+
+test('education check passes when resume has matching degree keyword', () => {
+  const { passed } = calculateExperienceFit(
+    'Bachelor of Science in Computer Science',
+    'Required: bachelor degree in relevant field',
+    'Software Engineer'
+  );
+  assert.ok(passed.includes('education'), `expected education in passed, got ${JSON.stringify(passed)}`);
+});
+
+test('education check passes when JD has no degree requirement', () => {
+  const { passed } = calculateExperienceFit(
+    'I worked as a developer for 5 years',
+    'Looking for an experienced developer',
+    'Developer'
+  );
+  assert.ok(passed.includes('education'), `expected education to pass when JD has no degree req`);
+});
+
+test('years check passes when resume meets JD requirement', () => {
+  const { passed } = calculateExperienceFit(
+    'I have 7 years of experience in software development',
+    'Minimum 5 years of experience required',
+    'Engineer'
+  );
+  assert.ok(passed.includes('years'), `expected years in passed, got ${JSON.stringify(passed)}`);
+});
+
+test('years check fails when resume years fall short', () => {
+  const { passed } = calculateExperienceFit(
+    'I have 2 years of experience',
+    'Minimum 5 years of experience required',
+    'Engineer'
+  );
+  assert.ok(!passed.includes('years'), `expected years to fail, got ${JSON.stringify(passed)}`);
+});
+
+test('years check passes by default when JD has no year requirement', () => {
+  const { passed } = calculateExperienceFit(
+    'I have been working in tech',
+    'Looking for a skilled developer',
+    'Developer'
+  );
+  assert.ok(passed.includes('years'), `expected years to pass by default`);
+});
+
+test('title check passes when job title word appears in resume', () => {
+  const { passed } = calculateExperienceFit(
+    'Senior Software Engineer at Acme Corp',
+    'We need an engineer with React skills',
+    'Software Engineer'
+  );
+  assert.ok(passed.includes('title'), `expected title in passed, got ${JSON.stringify(passed)}`);
+});
+
+test('score is 0 to 100', () => {
+  const { score } = calculateExperienceFit('no relevant content at all xyz', 'phd required 10 years machine learning kubernetes', 'Quantum Physicist');
+  assert.ok(score >= 0 && score <= 100, `expected 0–100, got ${score}`);
 });
 
 // --- Summary ---

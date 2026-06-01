@@ -90,6 +90,58 @@ function detectSections(resumeText) {
   return { count: found.length, found };
 }
 
+function calculateExperienceFit(resumeText, jobRequirements, jobTitle) {
+  const resumeLower = resumeText.toLowerCase();
+  const jdLower = jobRequirements.toLowerCase();
+  const passed = [];
+
+  // Check 1: Education level
+  const degreeKws = ['bachelor', 'master', 'mba', 'phd', 'doctorate', 'diploma', 'degree'];
+  const jdHasDegree = degreeKws.some(d => jdLower.includes(d));
+  if (!jdHasDegree || degreeKws.some(d => resumeLower.includes(d))) passed.push('education');
+
+  // Check 2: Years of experience
+  const yearsMatch = jdLower.match(/(\d+)\+?\s*years?/);
+  if (!yearsMatch) {
+    passed.push('years');
+  } else {
+    const required = parseInt(yearsMatch[1], 10);
+    const resumeYearMatches = resumeLower.match(/(\d+)\+?\s*years?/g) || [];
+    const maxFound = resumeYearMatches.reduce((max, m) => {
+      const n = parseInt(m, 10);
+      return n > max ? n : max;
+    }, 0);
+    if (maxFound >= required) passed.push('years');
+  }
+
+  // Check 3: Overlapping tools (≥30% keyword overlap)
+  const jdKeywords = extractKeywords(jobRequirements);
+  if (jdKeywords.length === 0) {
+    passed.push('tools');
+  } else {
+    const { matched } = matchKeywords(jdKeywords, resumeText);
+    if (matched.length / jdKeywords.length >= 0.30) passed.push('tools');
+  }
+
+  // Check 4: Relevant job title
+  const titleWords = (jobTitle || '').toLowerCase()
+    .split(/\s+/)
+    .map(w => w.replace(/[^a-z]/g, ''))
+    .filter(w => w.length >= 3 && !STOP_WORDS.has(w));
+  if (titleWords.length === 0 || titleWords.some(w => resumeLower.includes(w))) passed.push('title');
+
+  // Check 5: Industry background (≥1 industry noun from JD in resume)
+  const industryNouns = extractKeywords(jobRequirements).filter(kw => !kw.includes(' ') && kw.length >= 4);
+  if (industryNouns.length === 0) {
+    passed.push('industry');
+  } else {
+    const { matched: indMatched } = matchKeywords(industryNouns, resumeText);
+    if (indMatched.length >= 1) passed.push('industry');
+  }
+
+  return { score: Math.round((passed.length / 5) * 100), passed };
+}
+
 if (typeof module !== 'undefined') {
-  module.exports = { extractKeywords, matchKeywords, calculateScore, generateSuggestions, detectSections };
+  module.exports = { extractKeywords, matchKeywords, calculateScore, generateSuggestions, detectSections, calculateExperienceFit };
 }
