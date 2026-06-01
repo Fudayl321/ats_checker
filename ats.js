@@ -58,6 +58,33 @@ const STOP_WORDS = new Set([
   'resolution','templates','solutions','deliverables','requirements','specifications',
 ]);
 
+function buildSynonymMap() {
+  return {
+    'js': 'javascript', 'ts': 'typescript',
+    'html5': 'html', 'css3': 'css',
+    'ml': 'machine learning', 'ai': 'artificial intelligence',
+    'nlp': 'natural language processing', 'cv': 'computer vision',
+    'dl': 'deep learning', 'genai': 'generative ai',
+    'llm': 'large language model',
+    'aws': 'amazon web services', 'gcp': 'google cloud platform',
+    'reactjs': 'react', 'vuejs': 'vue', 'nextjs': 'next',
+    'ng': 'angular', 'angularjs': 'angular',
+    'nodejs': 'node', 'expressjs': 'express',
+    'psql': 'postgresql', 'pg': 'postgresql',
+    'postgres': 'postgresql', 'mongo': 'mongodb',
+    'k8s': 'kubernetes', 'tf': 'terraform',
+    'gh': 'github', 'golang': 'go',
+    'springboot': 'spring boot', 'cicd': 'continuous integration',
+    'ux': 'user experience', 'ui': 'user interface',
+    'oop': 'object oriented programming',
+    'api': 'application programming interface',
+    'sdk': 'software development kit',
+    'swe': 'software engineer', 'sre': 'site reliability engineer',
+    'qa': 'quality assurance', 'bi': 'business intelligence',
+    'vcs': 'version control',
+  };
+}
+
 function extractKeywords(text) {
   if (!text || !text.trim()) return [];
   const words = text.toLowerCase().split(/[\s\-–—\/]+/); // split on whitespace, hyphens, dashes, slashes
@@ -204,5 +231,5 @@ function calculateWeightedScore({ keywords, resumeText, jobTitle, jobRequirement
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { extractKeywords, matchKeywords, generateSuggestions, detectSections, calculateExperienceFit, calculateWeightedScore };
+  module.exports = { buildSynonymMap, extractKeywords, matchKeywords, generateSuggestions, detectSections, calculateExperienceFit, calculateWeightedScore };
 }

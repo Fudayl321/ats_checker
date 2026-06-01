@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { extractKeywords, matchKeywords, generateSuggestions, detectSections, calculateExperienceFit, calculateWeightedScore } = require('./ats.js');
+const { buildSynonymMap, extractKeywords, matchKeywords, generateSuggestions, detectSections, calculateExperienceFit, calculateWeightedScore } = require('./ats.js');
 
 let passed = 0;
 let failed = 0;
@@ -302,6 +302,29 @@ test('applies formula: total ≈ ((k*0.60 + s*0.20 + e*0.20) * 0.96)', () => {
   });
   const expected = Math.min(100, Math.round(((result.k * 0.60) + (result.s * 0.20) + (result.e * 0.20)) * 0.96));
   assert.strictEqual(result.total, expected, `formula mismatch: got ${result.total}, expected ${expected}`);
+});
+
+// --- buildSynonymMap ---
+console.log('\nbuildSynonymMap');
+
+test('js maps to javascript', () => {
+  const map = buildSynonymMap();
+  assert.strictEqual(map['js'], 'javascript');
+});
+
+test('ml maps to machine learning', () => {
+  const map = buildSynonymMap();
+  assert.strictEqual(map['ml'], 'machine learning');
+});
+
+test('k8s maps to kubernetes', () => {
+  const map = buildSynonymMap();
+  assert.strictEqual(map['k8s'], 'kubernetes');
+});
+
+test('returns at least 30 pairs', () => {
+  const map = buildSynonymMap();
+  assert.ok(Object.keys(map).length >= 30, `expected ≥30 pairs, got ${Object.keys(map).length}`);
 });
 
 // --- Summary ---
