@@ -170,6 +170,20 @@
       padding: 10px 20px; border-radius: 8px; font-size: 13px; z-index: 100;
     }
 
+    /* Hard filters */
+    .hard-filters { background: #1e293b; border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; }
+    .hard-filters h3 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #64748b; margin-bottom: 10px; }
+    .filter-row { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 4px 0; }
+    .filter-icon { width: 16px; text-align: center; }
+    .filter-label { flex: 1; color: #94a3b8; }
+    .filter-badge { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 8px; border-radius: 999px; }
+    .badge-pass { background: rgba(34,197,94,0.15); color: #4ade80; }
+    .badge-fail { background: rgba(239,68,68,0.15); color: #f87171; }
+    .badge-check { background: rgba(245,158,11,0.15); color: #fbbf24; }
+    .at-risk-banner { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.3); border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; font-size: 12px; color: #fbbf24; }
+    .pills-grey .pill { background: rgba(100,116,139,0.15); color: #94a3b8; }
+    .kw-empty { font-size: 12px; color: #475569; }
+
     /* Responsive */
     @media (max-width: 700px) {
       main.split { flex-direction: column; }
@@ -214,6 +228,13 @@
           <p>Analyzing...</p>
         </div>
         <div id="results-content" class="results-state hidden">
+          <div id="at-risk-banner" class="at-risk-banner hidden">
+            ⚠ At Risk — you may not pass the recruiter's hard filters
+          </div>
+          <div id="hard-filters" class="hard-filters hidden">
+            <h3>Hard Filters</h3>
+            <div id="filter-rows"></div>
+          </div>
           <div class="score-section">
             <svg width="120" height="120" viewBox="0 0 120 120">
               <circle cx="60" cy="60" r="50" fill="none" stroke="#1e293b" stroke-width="10"/>
@@ -229,24 +250,33 @@
             <div class="subscore-card">
               <div class="subscore-label">Keyword Match</div>
               <div id="subscore-k" class="subscore-value">—</div>
-              <div class="subscore-weight">60% of score</div>
+              <div class="subscore-weight">50% of score</div>
             </div>
             <div class="subscore-card">
               <div class="subscore-label">Structure</div>
               <div id="subscore-s" class="subscore-value">—</div>
-              <div class="subscore-weight">20% of score</div>
+              <div class="subscore-weight">15% of score</div>
             </div>
             <div class="subscore-card">
               <div class="subscore-label">Experience Fit</div>
               <div id="subscore-e" class="subscore-value">—</div>
               <div class="subscore-weight">20% of score</div>
             </div>
+            <div class="subscore-card">
+              <div class="subscore-label">Quantification</div>
+              <div id="subscore-q" class="subscore-value">—</div>
+              <div class="subscore-weight">15% of score</div>
+            </div>
           </div>
           <div class="keywords-section">
-            <h3>Matched Keywords</h3>
-            <div id="matched-keywords" class="pills pills-green"></div>
-            <h3>Missing Keywords</h3>
-            <div id="missing-keywords" class="pills pills-red"></div>
+            <h3>Required — Matched</h3>
+            <div id="required-matched" class="pills pills-green"></div>
+            <h3>Required — Missing</h3>
+            <div id="required-missing" class="pills pills-red"></div>
+            <h3>Preferred — Matched</h3>
+            <div id="preferred-matched" class="pills pills-green"></div>
+            <h3>Preferred — Missing</h3>
+            <div id="preferred-missing" class="pills pills-grey"></div>
           </div>
           <div class="suggestions-section">
             <h3>Suggestions</h3>
@@ -320,12 +350,18 @@
     const scoreRing      = document.getElementById('score-ring');
     const scorePct       = document.getElementById('score-pct');
     const scoreLabel     = document.getElementById('score-label');
-    const matchedKws     = document.getElementById('matched-keywords');
-    const missingKws     = document.getElementById('missing-keywords');
     const suggList       = document.getElementById('suggestions-list');
-    const subscoreK = document.getElementById('subscore-k');
-    const subscoreS = document.getElementById('subscore-s');
-    const subscoreE = document.getElementById('subscore-e');
+    const subscoreK      = document.getElementById('subscore-k');
+    const subscoreS      = document.getElementById('subscore-s');
+    const subscoreE      = document.getElementById('subscore-e');
+    const subscoreQ      = document.getElementById('subscore-q');
+    const atRiskBanner     = document.getElementById('at-risk-banner');
+    const hardFiltersEl    = document.getElementById('hard-filters');
+    const filterRowsEl     = document.getElementById('filter-rows');
+    const requiredMatchedEl  = document.getElementById('required-matched');
+    const requiredMissingEl  = document.getElementById('required-missing');
+    const preferredMatchedEl = document.getElementById('preferred-matched');
+    const preferredMissingEl = document.getElementById('preferred-missing');
 
     function checkReady() {
       analyzeBtn.disabled = !(resumeText.trim() && jobReqs.value.trim());
@@ -380,27 +416,26 @@
     analyzeBtn.addEventListener('click', async () => {
       analyzeBtn.disabled = true;
       showResults('loading');
-      await new Promise(r => setTimeout(r, 50)); // allow spinner to render
+      await new Promise(r => setTimeout(r, 50));
 
       const requirements = jobReqs.value;
       const jobTitle = jobTitleInput.value;
-      const keywords = extractKeywords(requirements);
-      const { matched, missing } = matchKeywords(keywords, resumeText);
-      const { total, k, s, e } = calculateWeightedScore({ keywords, resumeText, jobTitle, jobRequirements: requirements });
-      const suggestions = generateSuggestions(missing, requirements);
+      const { required: requiredKeywords, preferred: preferredKeywords } = splitRequiredPreferred(requirements);
+      const hardFilters = detectHardFilters(requirements, resumeText);
+      const { total, k, s, e, q, requiredMatched, requiredMissing, preferredMatched, preferredMissing, synonymHits } =
+        calculateWeightedScore({ requiredKeywords, preferredKeywords, resumeText, jobTitle, jobRequirements: requirements });
+      const suggestions = generateSuggestions({ requiredMissing, preferredMissing, qScore: q, hardFilters });
 
-      renderResults(total, matched, missing, suggestions, k, s, e);
+      renderResults({ score: total, k, s, e, q, requiredMatched, requiredMissing, preferredMatched, preferredMissing, synonymHits, suggestions, hardFilters });
       showResults('content');
       analyzeBtn.disabled = false;
     });
 
-    function renderResults(score, matched, missing, suggestions, k, s, e) {
-      // Score ring: circumference = 2 * π * r = 2 * 3.14159 * 50 ≈ 314
+    function renderResults({ score, k, s, e, q, requiredMatched, requiredMissing, preferredMatched, preferredMissing, synonymHits, suggestions, hardFilters }) {
       const circumference = 314;
       scoreRing.style.strokeDashoffset = circumference * (1 - score / 100);
       const color = score >= 85 ? '#22c55e' : score >= 70 ? '#f59e0b' : score >= 50 ? '#f97316' : '#ef4444';
       scoreRing.style.stroke = color;
-
       scorePct.textContent = score;
       const band = score >= 85 ? 'Excellent' : score >= 70 ? 'Good' : score >= 50 ? 'Average' : 'Poor';
       scoreLabel.textContent = band;
@@ -409,22 +444,58 @@
       subscoreK.textContent = k + '%';
       subscoreS.textContent = s + '%';
       subscoreE.textContent = e + '%';
+      subscoreQ.textContent = q + '%';
 
-      matchedKws.innerHTML = '';
-      matched.forEach(kw => {
-        const span = document.createElement('span');
-        span.className = 'pill';
-        span.textContent = kw;
-        matchedKws.appendChild(span);
-      });
+      const hasFail = hardFilters.some(f => f.status === 'fail');
+      atRiskBanner.classList.toggle('hidden', !hasFail);
+      if (hardFilters.length > 0) {
+        hardFiltersEl.classList.remove('hidden');
+        filterRowsEl.innerHTML = '';
+        hardFilters.forEach(f => {
+          const row = document.createElement('div');
+          row.className = 'filter-row';
+          const iconEl = document.createElement('span');
+          iconEl.className = 'filter-icon';
+          iconEl.textContent = f.status === 'pass' ? '✓' : f.status === 'fail' ? '✗' : '⚠';
+          const labelEl = document.createElement('span');
+          labelEl.className = 'filter-label';
+          labelEl.textContent = f.label;
+          const badgeEl = document.createElement('span');
+          badgeEl.className = `filter-badge badge-${f.status}`;
+          badgeEl.textContent = f.status === 'pass' ? 'PASS' : f.status === 'fail' ? 'FAIL' : 'CHECK';
+          row.appendChild(iconEl);
+          row.appendChild(labelEl);
+          row.appendChild(badgeEl);
+          filterRowsEl.appendChild(row);
+        });
+      } else {
+        hardFiltersEl.classList.add('hidden');
+      }
 
-      missingKws.innerHTML = '';
-      missing.forEach(kw => {
-        const span = document.createElement('span');
-        span.className = 'pill';
-        span.textContent = kw;
-        missingKws.appendChild(span);
-      });
+      const synonymLookup = {};
+      synonymHits.forEach(({ keyword, matchedAs }) => { synonymLookup[keyword] = matchedAs; });
+
+      function renderPills(container, keywords, emptyMsg) {
+        container.innerHTML = '';
+        if (!keywords.length) {
+          const span = document.createElement('span');
+          span.className = 'kw-empty';
+          span.textContent = emptyMsg;
+          container.appendChild(span);
+          return;
+        }
+        keywords.forEach(kw => {
+          const span = document.createElement('span');
+          span.className = 'pill';
+          span.textContent = synonymLookup[kw] ? `${synonymLookup[kw]} → ${kw}` : kw;
+          container.appendChild(span);
+        });
+      }
+
+      renderPills(requiredMatchedEl, requiredMatched, 'None matched');
+      renderPills(requiredMissingEl, requiredMissing, 'None missing');
+      renderPills(preferredMatchedEl, preferredMatched, preferredMatched.length === 0 && preferredMissing.length === 0 ? 'No preferred section detected' : 'None matched');
+      renderPills(preferredMissingEl, preferredMissing, 'None missing');
 
       suggList.innerHTML = '';
       suggestions.forEach(sg => {
