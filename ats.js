@@ -131,7 +131,7 @@ function calculateExperienceFit(resumeText, jobRequirements, jobTitle) {
   if (titleWords.length === 0 || titleWords.some(w => resumeLower.includes(w))) passed.push('title');
 
   // Check 5: Industry background (≥1 industry noun from JD in resume)
-  const industryNouns = extractKeywords(jobRequirements).filter(kw => !kw.includes(' ') && kw.length >= 4);
+  const industryNouns = jdKeywords.filter(kw => !kw.includes(' ') && kw.length >= 4);
   if (industryNouns.length === 0) {
     passed.push('industry');
   } else {

@@ -230,6 +230,33 @@ test('score is 0 to 100', () => {
   assert.ok(score >= 0 && score <= 100, `expected 0–100, got ${score}`);
 });
 
+test('education check fails when JD requires degree and resume has none', () => {
+  const { passed } = calculateExperienceFit(
+    'I have 5 years of experience building software applications',
+    'Bachelor degree required for this position',
+    'Engineer'
+  );
+  assert.ok(!passed.includes('education'), `expected education to fail, got ${JSON.stringify(passed)}`);
+});
+
+test('tools check passes when resume has 30%+ keyword overlap with JD', () => {
+  const { passed } = calculateExperienceFit(
+    'I have JavaScript, React, Node.js, developer experience building web applications',
+    'Looking for JavaScript React developer with Node.js experience',
+    'Developer'
+  );
+  assert.ok(passed.includes('tools'), `expected tools in passed, got ${JSON.stringify(passed)}`);
+});
+
+test('industry check passes when at least one JD industry noun appears in resume', () => {
+  const { passed } = calculateExperienceFit(
+    'Experienced in healthcare data systems and patient management',
+    'Looking for developer with healthcare experience in clinical systems',
+    'Developer'
+  );
+  assert.ok(passed.includes('industry'), `expected industry in passed, got ${JSON.stringify(passed)}`);
+});
+
 // --- Summary ---
 console.log(`\n${passed} passed, ${failed} failed\n`);
 if (failed > 0) process.exit(1);
