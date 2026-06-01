@@ -79,3 +79,35 @@
 **Last session:** 2026-06-01 — Fixed "master" substring false positives with word-boundary regex; removed generic "must be eligible" from authPhrases; added regression test; 69/69 tests passing
 
 **Spec:** task description in this session
+
+---
+
+## Task 5: detectQuantification
+
+**Status:** Completed
+
+**Approach:** Implement `detectQuantification(resumeText)` function that detects measurable metrics in resume text (percentages, dollar amounts, headcount, action-verb metrics). Returns object with `score` (0-100, capped at 20 per metric) and `count` (number of metrics found). Prioritizes patterns with high precision: `\d+%`, `$[\d,]+`, `\d+x\b`, quantified nouns, action-verb patterns.
+
+**Files to change:**
+- `ats.js` — add `detectQuantification` function
+- `ats.test.js` — add 6 new tests
+
+**Last session:** 2026-06-01 — TDD: added 6 failing tests, implemented function with pattern array; 71/71 tests passing
+
+**Spec:** task description in this session
+
+---
+
+## Task 6: Update generateSuggestions
+
+**Status:** Completed
+
+**Approach:** Signature change from `(missingKeywords, requirementsText)` to `({ requiredMissing, preferredMissing, qScore, hardFilters })`. Implement recruiter-framed suggestions: (1) hard filter failures first; (2) required missing keywords up to 3; (3) quantification suggestion if qScore < 40; (4) preferred keywords up to 2. Limit output to 5 suggestions max. Replaced 4 old tests with 6 new ones covering new signature and logic.
+
+**Files to change:**
+- `ats.js` — replaced entire generateSuggestions function
+- `ats.test.js` — replaced old 4-test block with new 6-test block
+
+**Last session:** 2026-06-01 — TDD: replaced tests (4 -> 6, +2 net), implemented new function signature and logic; 71/71 tests passing (69 baseline + 2 new)
+
+**Spec:** task description in this session
