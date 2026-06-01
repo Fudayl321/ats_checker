@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { buildSynonymMap, extractKeywords, matchKeywords, generateSuggestions, detectSections, calculateExperienceFit, calculateWeightedScore } = require('./ats.js');
+const { buildSynonymMap, extractKeywords, matchKeywords, generateSuggestions, detectSections, calculateExperienceFit, calculateWeightedScore, splitRequiredPreferred } = require('./ats.js');
 
 let passed = 0;
 let failed = 0;
@@ -357,6 +357,36 @@ test('k8s maps to kubernetes', () => {
 test('returns at least 30 pairs', () => {
   const map = buildSynonymMap();
   assert.ok(Object.keys(map).length >= 30, `expected ≥30 pairs, got ${Object.keys(map).length}`);
+});
+
+// --- splitRequiredPreferred ---
+console.log('\nsplitRequiredPreferred');
+
+test('all keywords go to required when no section markers found', () => {
+  const { required, preferred } = splitRequiredPreferred('Python JavaScript Docker experience');
+  assert.ok(required.includes('python'), `expected python in required`);
+  assert.deepStrictEqual(preferred, [], `expected empty preferred`);
+});
+
+test('splits on "Required:" and "Preferred:" headers', () => {
+  const jd = 'Required:\nPython Docker\nPreferred:\nKubernetes Terraform';
+  const { required, preferred } = splitRequiredPreferred(jd);
+  assert.ok(required.includes('python'), `expected python in required`);
+  assert.ok(preferred.includes('kubernetes'), `expected kubernetes in preferred`);
+  assert.ok(!required.includes('kubernetes'), `kubernetes should not be in required`);
+});
+
+test('splits on "Must Have" and "Nice to Have"', () => {
+  const jd = 'Must Have\nReact TypeScript\nNice to Have\nGraphQL Redis';
+  const { required, preferred } = splitRequiredPreferred(jd);
+  assert.ok(required.includes('react'), `expected react in required`);
+  assert.ok(preferred.includes('graphql'), `expected graphql in preferred`);
+});
+
+test('returns arrays for empty input', () => {
+  const { required, preferred } = splitRequiredPreferred('');
+  assert.ok(Array.isArray(required));
+  assert.ok(Array.isArray(preferred));
 });
 
 // --- Summary ---

@@ -261,6 +261,29 @@ function calculateWeightedScore({ keywords, resumeText, jobTitle, jobRequirement
   return { total, k, s, e };
 }
 
+function splitRequiredPreferred(jdText) {
+  const requiredTriggers = /required|must have|minimum qualifications|you must|mandatory|essential/i;
+  const preferredTriggers = /preferred|nice to have|bonus|plus if|desired|ideally|advantageous/i;
+  const lines = jdText.split('\n');
+  let currentSection = 'required';
+  const requiredLines = [];
+  const preferredLines = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    const isHeading = trimmed.length <= 80 && !/^[•\-\*]/.test(trimmed);
+    if (isHeading && requiredTriggers.test(trimmed)) currentSection = 'required';
+    else if (isHeading && preferredTriggers.test(trimmed)) currentSection = 'preferred';
+    if (currentSection === 'required') requiredLines.push(line);
+    else preferredLines.push(line);
+  }
+
+  return {
+    required: extractKeywords(requiredLines.join('\n')),
+    preferred: extractKeywords(preferredLines.join('\n')),
+  };
+}
+
 if (typeof module !== 'undefined') {
-  module.exports = { buildSynonymMap, extractKeywords, matchKeywords, generateSuggestions, detectSections, calculateExperienceFit, calculateWeightedScore };
+  module.exports = { buildSynonymMap, extractKeywords, matchKeywords, generateSuggestions, detectSections, calculateExperienceFit, calculateWeightedScore, splitRequiredPreferred };
 }
