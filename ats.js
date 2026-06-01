@@ -261,20 +261,28 @@ function calculateExperienceFit(resumeText, jobRequirements, jobTitle) {
   return { score: Math.round((passed.length / 5) * 100), passed };
 }
 
-function calculateWeightedScore({ keywords, resumeText, jobTitle, jobRequirements }) {
-  if (!resumeText || !jobRequirements) return { total: 0, k: 0, s: 0, e: 0 };
+function calculateWeightedScore({ requiredKeywords = [], preferredKeywords = [], resumeText, jobTitle, jobRequirements }) {
+  if (!resumeText || !jobRequirements) {
+    return { total: 0, k: 0, s: 0, e: 0, q: 0, requiredMatched: [], requiredMissing: [], preferredMatched: [], preferredMissing: [], synonymHits: [] };
+  }
 
-  const { matched } = matchKeywords(keywords, resumeText);
-  const k = keywords.length === 0 ? 0 : Math.round((matched.length / keywords.length) * 100);
+  const { matched: requiredMatched, missing: requiredMissing, synonymHits: reqHits } = matchKeywords(requiredKeywords, resumeText);
+  const { matched: preferredMatched, missing: preferredMissing, synonymHits: prefHits } = matchKeywords(preferredKeywords, resumeText);
+  const synonymHits = [...reqHits, ...prefHits];
+
+  const rk = requiredKeywords.length === 0 ? 100 : Math.round((requiredMatched.length / requiredKeywords.length) * 100);
+  const pk = preferredKeywords.length === 0 ? 100 : Math.round((preferredMatched.length / preferredKeywords.length) * 100);
+  const k = Math.round(rk * 0.70 + pk * 0.30);
 
   const { count: sCount } = detectSections(resumeText);
   const s = Math.round((sCount / 7) * 100);
 
   const { score: e } = calculateExperienceFit(resumeText, jobRequirements, jobTitle);
+  const { score: q } = detectQuantification(resumeText);
 
-  const total = Math.min(100, Math.round(((k * 0.60) + (s * 0.20) + (e * 0.20)) * 0.96));
+  const total = Math.min(100, Math.round(((k * 0.50) + (s * 0.15) + (e * 0.20) + (q * 0.15)) * 0.96));
 
-  return { total, k, s, e };
+  return { total, k, s, e, q, requiredMatched, requiredMissing, preferredMatched, preferredMissing, synonymHits };
 }
 
 function splitRequiredPreferred(jdText) {
