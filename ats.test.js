@@ -121,24 +121,32 @@ test('short alias does not match as substring of unrelated word', () => {
 console.log('\ngenerateSuggestions');
 
 test('returns at most 5 suggestions', () => {
-  const missing = ['java', 'kubernetes', 'docker', 'terraform', 'python', 'golang', 'rust'];
-  const suggestions = generateSuggestions(missing, 'java kubernetes docker terraform python golang rust');
-  assert.ok(suggestions.length <= 5, `expected ≤5, got ${suggestions.length}`);
+  const s = generateSuggestions({ requiredMissing: ['java','kubernetes','docker','terraform','python','golang'], preferredMissing: ['rust'], qScore: 100, hardFilters: [] });
+  assert.ok(s.length <= 5, `expected ≤5, got ${s.length}`);
 });
 
-test('suggestion text contains the missing keyword', () => {
-  const suggestions = generateSuggestions(['kubernetes'], 'kubernetes cluster deployment');
-  assert.ok(suggestions[0].toLowerCase().includes('kubernetes'), `expected keyword in suggestion text, got: ${suggestions[0]}`);
+test('suggestion text contains the missing required keyword', () => {
+  const s = generateSuggestions({ requiredMissing: ['kubernetes'], preferredMissing: [], qScore: 100, hardFilters: [] });
+  assert.ok(s[0].toLowerCase().includes('kubernetes'), `got: ${s[0]}`);
 });
 
-test('returns empty array when no keywords are missing', () => {
-  assert.deepStrictEqual(generateSuggestions([], 'any requirements'), []);
+test('returns empty array when nothing missing and qScore high', () => {
+  assert.deepStrictEqual(generateSuggestions({ requiredMissing: [], preferredMissing: [], qScore: 100, hardFilters: [] }), []);
 });
 
-test('sorts by keyword frequency in requirements (most frequent first)', () => {
-  const missing = ['rare', 'common'];
-  const suggestions = generateSuggestions(missing, 'common common common rare');
-  assert.ok(suggestions[0].includes('common'), `expected "common" first, got: ${suggestions[0]}`);
+test('surfaces hard filter fail as first suggestion', () => {
+  const s = generateSuggestions({ requiredMissing: [], preferredMissing: [], qScore: 100, hardFilters: [{ label: '5+ years experience', status: 'fail' }] });
+  assert.ok(s[0].toLowerCase().includes('5+ years experience'), `got: ${s[0]}`);
+});
+
+test('includes quantification suggestion when qScore < 40', () => {
+  const s = generateSuggestions({ requiredMissing: [], preferredMissing: [], qScore: 20, hardFilters: [] });
+  assert.ok(s.some(x => x.toLowerCase().includes('measurable')), `got: ${JSON.stringify(s)}`);
+});
+
+test('labels preferred missing keywords differently from required', () => {
+  const s = generateSuggestions({ requiredMissing: [], preferredMissing: ['graphql'], qScore: 100, hardFilters: [] });
+  assert.ok(s.some(x => x.toLowerCase().includes('preferred')), `got: ${JSON.stringify(s)}`);
 });
 
 // --- detectSections ---

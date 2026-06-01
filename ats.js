@@ -156,14 +156,30 @@ function matchKeywords(keywords, resumeText) {
   return { matched, missing, synonymHits };
 }
 
-function generateSuggestions(missingKeywords, requirementsText) {
-  if (!missingKeywords.length) return [];
-  const reqLower = requirementsText.toLowerCase();
-  const freq = kw => (reqLower.match(new RegExp(kw.split(' ')[0], 'g')) || []).length;
-  return [...missingKeywords]
-    .sort((a, b) => freq(b) - freq(a))
-    .slice(0, 5)
-    .map(kw => `Consider adding "${kw}" — it appears in the job requirements`);
+function generateSuggestions({ requiredMissing = [], preferredMissing = [], qScore = 100, hardFilters = [] } = {}) {
+  const suggestions = [];
+
+  for (const filter of hardFilters) {
+    if (filter.status === 'fail') {
+      suggestions.push(`Address first: you may not meet the "${filter.label}" requirement`);
+    }
+  }
+
+  for (const kw of requiredMissing.slice(0, 3)) {
+    if (suggestions.length >= 5) break;
+    suggestions.push(`Add "${kw}" — it's in the required section of this JD`);
+  }
+
+  if (qScore < 40 && suggestions.length < 5) {
+    suggestions.push('Add measurable achievements (e.g. "reduced load time by 30%") — recruiters expect metrics');
+  }
+
+  for (const kw of preferredMissing.slice(0, 2)) {
+    if (suggestions.length >= 5) break;
+    suggestions.push(`Consider adding "${kw}" — it's a preferred qualification`);
+  }
+
+  return suggestions.slice(0, 5);
 }
 
 function detectSections(resumeText) {
