@@ -116,6 +116,13 @@ function normalize(word) {
   return w.endsWith('s') && w.length > 3 ? w.slice(0, -1) : w;
 }
 
+function isVariantInText(variant, text) {
+  if (variant.length <= 3 && !variant.includes(' ')) {
+    return new RegExp('\\b' + variant + '\\b').test(text);
+  }
+  return text.includes(variant);
+}
+
 function matchKeywords(keywords, resumeText) {
   if (!keywords.length) return { matched: [], missing: [], synonymHits: [] };
   const synonymMap = buildSynonymMap();
@@ -132,7 +139,7 @@ function matchKeywords(keywords, resumeText) {
 
     for (const variant of variants) {
       const normVariant = variant.split(' ').map(normalize).join(' ');
-      if (resumeLower.includes(variant) || resumeNormWords.includes(normVariant)) {
+      if (isVariantInText(variant, resumeLower) || isVariantInText(normVariant, resumeNormWords)) {
         found = true;
         if (variant !== kw) matchedAlias = variant;
         break;

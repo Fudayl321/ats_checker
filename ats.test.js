@@ -112,6 +112,11 @@ test('synonymHits field present on empty keyword input', () => {
   assert.deepStrictEqual(result.synonymHits, []);
 });
 
+test('short alias does not match as substring of unrelated word', () => {
+  const { matched } = matchKeywords(['angular'], 'training engineers with interesting backgrounds');
+  assert.deepStrictEqual(matched, [], `'ng' should not match inside "training"/"interesting", got ${JSON.stringify(matched)}`);
+});
+
 // --- generateSuggestions ---
 console.log('\ngenerateSuggestions');
 
