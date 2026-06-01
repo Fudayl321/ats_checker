@@ -127,6 +127,25 @@
       letter-spacing: 0.06em; text-transform: uppercase;
     }
 
+    /* Sub-score cards */
+    .subscores {
+      display: flex; gap: 8px; margin: 8px 0 16px; width: 100%;
+    }
+    .subscore-card {
+      flex: 1; background: #1e293b; border-radius: 8px;
+      padding: 10px 6px; text-align: center;
+    }
+    .subscore-label {
+      font-size: 10px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.05em; color: #64748b; margin-bottom: 4px;
+    }
+    .subscore-value {
+      font-size: 18px; font-weight: 800; color: #e2e8f0; margin-bottom: 2px;
+    }
+    .subscore-weight {
+      font-size: 10px; color: #475569;
+    }
+
     /* Keywords */
     .keywords-section { margin: 12px 0; }
     .keywords-section h3, .suggestions-section h3 {
@@ -205,6 +224,23 @@
             </svg>
             <div class="score-number"><span id="score-pct">0</span>%</div>
             <div id="score-label" class="score-label">—</div>
+          </div>
+          <div class="subscores">
+            <div class="subscore-card">
+              <div class="subscore-label">Keyword Match</div>
+              <div id="subscore-k" class="subscore-value">—</div>
+              <div class="subscore-weight">60% of score</div>
+            </div>
+            <div class="subscore-card">
+              <div class="subscore-label">Structure</div>
+              <div id="subscore-s" class="subscore-value">—</div>
+              <div class="subscore-weight">20% of score</div>
+            </div>
+            <div class="subscore-card">
+              <div class="subscore-label">Experience Fit</div>
+              <div id="subscore-e" class="subscore-value">—</div>
+              <div class="subscore-weight">20% of score</div>
+            </div>
           </div>
           <div class="keywords-section">
             <h3>Matched Keywords</h3>
@@ -286,6 +322,9 @@
     const matchedKws     = document.getElementById('matched-keywords');
     const missingKws     = document.getElementById('missing-keywords');
     const suggList       = document.getElementById('suggestions-list');
+    const subscoreK = document.getElementById('subscore-k');
+    const subscoreS = document.getElementById('subscore-s');
+    const subscoreE = document.getElementById('subscore-e');
 
     function checkReady() {
       analyzeBtn.disabled = !(resumeText.trim() && jobReqs.value.trim());
@@ -342,29 +381,35 @@
       await new Promise(r => setTimeout(r, 50)); // allow spinner to render
 
       const requirements = jobReqs.value;
+      const jobTitle = document.getElementById('job-title').value;
       const keywords = extractKeywords(requirements);
       const { matched, missing } = matchKeywords(keywords, resumeText);
-      const score = calculateScore(matched.length, keywords.length);
+      const { total, k, s, e } = calculateWeightedScore({ keywords, resumeText, jobTitle, jobRequirements: requirements });
       const suggestions = generateSuggestions(missing, requirements);
 
-      renderResults(score, matched, missing, suggestions);
+      renderResults(total, matched, missing, suggestions, k, s, e);
       showResults('content');
     });
 
-    function renderResults(score, matched, missing, suggestions) {
+    function renderResults(score, matched, missing, suggestions, k, s, e) {
       // Score ring: circumference = 2 * π * r = 2 * 3.14159 * 50 ≈ 314
       const circumference = 314;
       scoreRing.style.strokeDashoffset = circumference * (1 - score / 100);
-      const color = score >= 75 ? '#22c55e' : score >= 50 ? '#f59e0b' : '#ef4444';
+      const color = score >= 85 ? '#22c55e' : score >= 70 ? '#f59e0b' : score >= 50 ? '#f97316' : '#ef4444';
       scoreRing.style.stroke = color;
 
       scorePct.textContent = score;
-      scoreLabel.textContent = score >= 75 ? 'Good Match' : score >= 50 ? 'Partial Match' : 'Low Match';
+      const band = score >= 85 ? 'Excellent' : score >= 70 ? 'Good' : score >= 50 ? 'Average' : 'Poor';
+      scoreLabel.textContent = band;
       scoreLabel.style.color = color;
+
+      subscoreK.textContent = k + '%';
+      subscoreS.textContent = s + '%';
+      subscoreE.textContent = e + '%';
 
       matchedKws.innerHTML = matched.map(kw => `<span class="pill">${kw}</span>`).join('');
       missingKws.innerHTML  = missing.map(kw => `<span class="pill">${kw}</span>`).join('');
-      suggList.innerHTML    = suggestions.map(s => `<li>${s}</li>`).join('');
+      suggList.innerHTML    = suggestions.map(sg => `<li>${sg}</li>`).join('');
     }
 
     function showResults(state) {
