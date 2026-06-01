@@ -308,7 +308,8 @@
     const fileInfo     = document.getElementById('file-info');
     const fileNameEl   = document.getElementById('file-name');
     const clearFileBtn = document.getElementById('clear-file');
-    const jobReqs      = document.getElementById('job-requirements');
+    const jobReqs       = document.getElementById('job-requirements');
+    const jobTitleInput = document.getElementById('job-title');
     const analyzeBtn   = document.getElementById('analyze-btn');
     const errorBanner  = document.getElementById('error-banner');
 
@@ -377,11 +378,12 @@
     }
 
     analyzeBtn.addEventListener('click', async () => {
+      analyzeBtn.disabled = true;
       showResults('loading');
       await new Promise(r => setTimeout(r, 50)); // allow spinner to render
 
       const requirements = jobReqs.value;
-      const jobTitle = document.getElementById('job-title').value;
+      const jobTitle = jobTitleInput.value;
       const keywords = extractKeywords(requirements);
       const { matched, missing } = matchKeywords(keywords, resumeText);
       const { total, k, s, e } = calculateWeightedScore({ keywords, resumeText, jobTitle, jobRequirements: requirements });
@@ -389,6 +391,7 @@
 
       renderResults(total, matched, missing, suggestions, k, s, e);
       showResults('content');
+      analyzeBtn.disabled = false;
     });
 
     function renderResults(score, matched, missing, suggestions, k, s, e) {
@@ -407,9 +410,28 @@
       subscoreS.textContent = s + '%';
       subscoreE.textContent = e + '%';
 
-      matchedKws.innerHTML = matched.map(kw => `<span class="pill">${kw}</span>`).join('');
-      missingKws.innerHTML  = missing.map(kw => `<span class="pill">${kw}</span>`).join('');
-      suggList.innerHTML    = suggestions.map(sg => `<li>${sg}</li>`).join('');
+      matchedKws.innerHTML = '';
+      matched.forEach(kw => {
+        const span = document.createElement('span');
+        span.className = 'pill';
+        span.textContent = kw;
+        matchedKws.appendChild(span);
+      });
+
+      missingKws.innerHTML = '';
+      missing.forEach(kw => {
+        const span = document.createElement('span');
+        span.className = 'pill';
+        span.textContent = kw;
+        missingKws.appendChild(span);
+      });
+
+      suggList.innerHTML = '';
+      suggestions.forEach(sg => {
+        const li = document.createElement('li');
+        li.textContent = sg;
+        suggList.appendChild(li);
+      });
     }
 
     function showResults(state) {
