@@ -449,6 +449,11 @@ test('empty array when JD has no hard requirements', () => {
   assert.deepStrictEqual(filters, []);
 });
 
+test('no degree filter for "mastered" (avoids false positive on past tense)', () => {
+  const filters = detectHardFilters('Candidates should have mastered Python and data pipelines', 'some resume');
+  assert.ok(!filters.find(f => f.label.toLowerCase().includes('degree')), 'expected no degree filter for "mastered" as past tense verb');
+});
+
 // --- detectQuantification ---
 console.log('\ndetectQuantification');
 

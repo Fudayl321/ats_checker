@@ -299,15 +299,15 @@ function detectHardFilters(jdText, resumeText) {
     filters.push({ label: `${required}+ years experience`, status: maxFound >= required ? 'pass' : 'fail' });
   }
 
-  const degreeKws = ['bachelor', 'master', 'mba', 'phd', 'doctorate', 'diploma', 'degree'];
-  if (degreeKws.some(d => jdLower.includes(d))) {
+  const degreePattern = /\b(bachelor'?s?|master'?s?|mba|ph\.?d\.?|doctorate|diploma|degree)\b/i;
+  if (degreePattern.test(jdLower)) {
     filters.push({
       label: 'Degree requirement',
-      status: degreeKws.some(d => resumeLower.includes(d)) ? 'pass' : 'fail',
+      status: degreePattern.test(resumeLower) ? 'pass' : 'fail',
     });
   }
 
-  const authPhrases = ['authorized to work', 'visa sponsorship not provided', 'must be eligible', 'right to work'];
+  const authPhrases = ['authorized to work', 'visa sponsorship not provided', 'right to work'];
   if (authPhrases.some(p => jdLower.includes(p))) {
     filters.push({ label: 'Work authorization', status: 'check' });
   }
