@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ATS Score Checker</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+
+    /* Header */
+    header {
+      padding: 14px 24px;
+      background: #1e293b;
+      border-bottom: 1px solid #334155;
+    }
+    .logo { font-size: 16px; font-weight: 700; color: #818cf8; letter-spacing: 0.05em; }
+
+    /* Layout */
+    #app { display: flex; flex-direction: column; min-height: 100vh; }
+    main.split { display: flex; flex: 1; }
+    .panel { flex: 1; padding: 28px 24px; overflow-y: auto; }
+    .panel-left { border-right: 1px solid #1e293b; }
+    .panel-right { background: #0b1120; }
+
+    /* Left panel heading */
+    .panel-left h2 {
+      font-size: 12px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; color: #94a3b8; margin-bottom: 18px;
+    }
+
+    /* Upload zone */
+    .upload-zone {
+      border: 2px dashed #334155; border-radius: 10px; padding: 24px;
+      text-align: center; cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      margin-bottom: 16px;
+    }
+    .upload-zone:hover, .upload-zone.dragover {
+      border-color: #6366f1;
+      background: rgba(99,102,241,0.05);
+    }
+    .upload-icon { font-size: 28px; display: block; margin-bottom: 8px; }
+    .upload-zone p { color: #94a3b8; font-size: 13px; }
+    .upload-zone .hint { font-size: 11px; color: #475569; margin-top: 4px; }
+    .upload-zone button {
+      background: none; border: none; color: #818cf8; cursor: pointer;
+      font-size: 13px; text-decoration: underline; padding: 0;
+    }
+
+    /* File info */
+    .file-info {
+      display: flex; align-items: center; justify-content: space-between;
+      background: #1e293b; border-radius: 6px; padding: 8px 12px;
+      margin-bottom: 16px; font-size: 13px; color: #94a3b8;
+    }
+    .file-info button {
+      background: none; border: none; color: #64748b;
+      cursor: pointer; font-size: 16px; line-height: 1;
+    }
+    .file-info button:hover { color: #ef4444; }
+
+    /* Form */
+    label {
+      display: block; font-size: 11px; font-weight: 600; color: #64748b;
+      text-transform: uppercase; letter-spacing: 0.06em;
+      margin-bottom: 6px; margin-top: 16px;
+    }
+    input[type="text"], textarea {
+      width: 100%; background: #1e293b; border: 1px solid #334155;
+      border-radius: 6px; color: #e2e8f0; padding: 10px 12px;
+      font-size: 14px; font-family: inherit; outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus, textarea:focus { border-color: #6366f1; }
+    textarea { resize: vertical; min-height: 120px; }
+    input::placeholder, textarea::placeholder { color: #475569; }
+
+    /* Analyze button */
+    #analyze-btn {
+      width: 100%; margin-top: 20px; padding: 12px;
+      background: #6366f1; color: #fff; border: none; border-radius: 8px;
+      font-size: 14px; font-weight: 700; cursor: pointer;
+      transition: background 0.2s, opacity 0.2s;
+    }
+    #analyze-btn:hover:not(:disabled) { background: #4f46e5; }
+    #analyze-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Results states */
+    .results-state { width: 100%; }
+    .hidden { display: none !important; }
+
+    .results-placeholder {
+      color: #334155; font-size: 14px; text-align: center; margin-top: 80px;
+    }
+
+    /* Loading */
+    #results-loading {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 14px; margin-top: 80px; color: #475569; font-size: 14px;
+    }
+    .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid #1e293b; border-top-color: #6366f1;
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Score ring */
+    .score-section {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 24px 0 8px; position: relative;
+    }
+    .score-number {
+      font-size: 22px; font-weight: 800; color: #e2e8f0;
+      position: absolute; top: 54px; left: 50%; transform: translateX(-50%);
+      white-space: nowrap;
+    }
+    .score-label {
+      margin-top: 8px; font-size: 12px; font-weight: 700;
+      letter-spacing: 0.06em; text-transform: uppercase;
+    }
+
+    /* Keywords */
+    .keywords-section { margin: 12px 0; }
+    .keywords-section h3, .suggestions-section h3 {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.07em; color: #64748b; margin: 16px 0 8px;
+    }
+    .pills { display: flex; flex-wrap: wrap; gap: 6px; }
+    .pill { padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 500; }
+    .pills-green .pill { background: rgba(34,197,94,0.15); color: #4ade80; }
+    .pills-red .pill   { background: rgba(239,68,68,0.15); color: #f87171; }
+
+    /* Suggestions */
+    .suggestions-section ol {
+      padding-left: 18px; display: flex; flex-direction: column; gap: 8px;
+    }
+    .suggestions-section li { font-size: 13px; color: #94a3b8; line-height: 1.5; }
+
+    /* Error banner */
+    .error-banner {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: #7f1d1d; color: #fca5a5;
+      padding: 10px 20px; border-radius: 8px; font-size: 13px; z-index: 100;
+    }
+
+    /* Responsive */
+    @media (max-width: 700px) {
+      main.split { flex-direction: column; }
+      .panel-left { border-right: none; border-bottom: 1px solid #1e293b; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <span class="logo">ATS Checker</span>
+    </header>
+    <main class="split">
+
+      <!-- Left panel: inputs -->
+      <section class="panel panel-left">
+        <h2>Your Resume</h2>
+        <div id="upload-zone" class="upload-zone">
+          <span class="upload-icon">📄</span>
+          <p>Drop your resume here or <button id="browse-btn" type="button">browse</button></p>
+          <p class="hint">PDF, DOCX, or TXT</p>
+          <input type="file" id="file-input" accept=".pdf,.docx,.txt" hidden>
+        </div>
+        <div id="file-info" class="file-info hidden">
+          <span id="file-name"></span>
+          <button id="clear-file" type="button">×</button>
+        </div>
+        <label for="job-title">Job Title</label>
+        <input type="text" id="job-title" placeholder="e.g. Senior Software Engineer">
+        <label for="job-requirements">Job Requirements</label>
+        <textarea id="job-requirements" rows="6" placeholder="Paste the full job description here..."></textarea>
+        <button id="analyze-btn" type="button" disabled>Analyze Resume</button>
+      </section>
+
+      <!-- Right panel: results -->
+      <section class="panel panel-right">
+        <div id="results-empty" class="results-state">
+          <p class="results-placeholder">Your results will appear here</p>
+        </div>
+        <div id="results-loading" class="results-state hidden">
+          <div class="spinner"></div>
+          <p>Analyzing...</p>
+        </div>
+        <div id="results-content" class="results-state hidden">
+          <div class="score-section">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r="50" fill="none" stroke="#1e293b" stroke-width="10"/>
+              <circle id="score-ring" cx="60" cy="60" r="50" fill="none" stroke="#22c55e"
+                stroke-width="10" stroke-linecap="round"
+                stroke-dasharray="314" stroke-dashoffset="314"
+                transform="rotate(-90 60 60)"/>
+            </svg>
+            <div class="score-number"><span id="score-pct">0</span>%</div>
+            <div id="score-label" class="score-label">—</div>
+          </div>
+          <div class="keywords-section">
+            <h3>Matched Keywords</h3>
+            <div id="matched-keywords" class="pills pills-green"></div>
+            <h3>Missing Keywords</h3>
+            <div id="missing-keywords" class="pills pills-red"></div>
+          </div>
+          <div class="suggestions-section">
+            <h3>Suggestions</h3>
+            <ol id="suggestions-list"></ol>
+          </div>
+        </div>
+      </section>
+
+    </main>
+    <div id="error-banner" class="error-banner hidden"></div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+  <script src="ats.js"></script>
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    async function parseFile(file) {
+      const ext = file.name.split('.').pop().toLowerCase();
+
+      if (ext === 'txt') {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = e => resolve(e.target.result);
+          reader.onerror = () => reject(new Error('Could not read this file. Try saving as a different format.'));
+          reader.readAsText(file);
+        });
+      }
+
+      if (ext === 'pdf') {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let text = '';
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          text += content.items.map(item => item.str).join(' ') + '\n';
+        }
+        return text;
+      }
+
+      if (ext === 'docx') {
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        return result.value;
+      }
+
+      throw new Error('Please upload a PDF, DOCX, or TXT file.');
+    }
+
+    let resumeText = '';
+
+    // DOM refs — inputs
+    const uploadZone   = document.getElementById('upload-zone');
+    const fileInput    = document.getElementById('file-input');
+    const browseBtn    = document.getElementById('browse-btn');
+    const fileInfo     = document.getElementById('file-info');
+    const fileNameEl   = document.getElementById('file-name');
+    const clearFileBtn = document.getElementById('clear-file');
+    const jobReqs      = document.getElementById('job-requirements');
+    const analyzeBtn   = document.getElementById('analyze-btn');
+    const errorBanner  = document.getElementById('error-banner');
+
+    // DOM refs — results
+    const resultsEmpty   = document.getElementById('results-empty');
+    const resultsLoading = document.getElementById('results-loading');
+    const resultsContent = document.getElementById('results-content');
+    const scoreRing      = document.getElementById('score-ring');
+    const scorePct       = document.getElementById('score-pct');
+    const scoreLabel     = document.getElementById('score-label');
+    const matchedKws     = document.getElementById('matched-keywords');
+    const missingKws     = document.getElementById('missing-keywords');
+    const suggList       = document.getElementById('suggestions-list');
+
+    function checkReady() {
+      analyzeBtn.disabled = !(resumeText.trim() && jobReqs.value.trim());
+    }
+    jobReqs.addEventListener('input', checkReady);
+
+    // Drag and drop
+    uploadZone.addEventListener('dragover', e => {
+      e.preventDefault();
+      uploadZone.classList.add('dragover');
+    });
+    uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+    uploadZone.addEventListener('drop', e => {
+      e.preventDefault();
+      uploadZone.classList.remove('dragover');
+      if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+    });
+
+    // Click to browse
+    uploadZone.addEventListener('click', () => fileInput.click());
+    browseBtn.addEventListener('click', e => { e.stopPropagation(); fileInput.click(); });
+    fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleFile(fileInput.files[0]); });
+
+    // Clear file
+    clearFileBtn.addEventListener('click', () => {
+      resumeText = '';
+      fileInput.value = '';
+      fileInfo.classList.add('hidden');
+      uploadZone.classList.remove('hidden');
+      checkReady();
+    });
+
+    async function handleFile(file) {
+      showError('');
+      try {
+        resumeText = await parseFile(file);
+        if (!resumeText.trim()) {
+          showError('No text found in this file. Try a different format.');
+          resumeText = '';
+          return;
+        }
+        fileNameEl.textContent = file.name;
+        uploadZone.classList.add('hidden');
+        fileInfo.classList.remove('hidden');
+        checkReady();
+      } catch (err) {
+        showError(err.message || 'Could not read this file. Try saving as a different format.');
+        resumeText = '';
+      }
+    }
+
+    analyzeBtn.addEventListener('click', async () => {
+      showResults('loading');
+      await new Promise(r => setTimeout(r, 50)); // allow spinner to render
+
+      const requirements = jobReqs.value;
+      const keywords = extractKeywords(requirements);
+      const { matched, missing } = matchKeywords(keywords, resumeText);
+      const score = calculateScore(matched.length, keywords.length);
+      const suggestions = generateSuggestions(missing, requirements);
+
+      renderResults(score, matched, missing, suggestions);
+      showResults('content');
+    });
+
+    function renderResults(score, matched, missing, suggestions) {
+      // Score ring: circumference = 2 * π * r = 2 * 3.14159 * 50 ≈ 314
+      const circumference = 314;
+      scoreRing.style.strokeDashoffset = circumference * (1 - score / 100);
+      const color = score >= 75 ? '#22c55e' : score >= 50 ? '#f59e0b' : '#ef4444';
+      scoreRing.style.stroke = color;
+
+      scorePct.textContent = score;
+      scoreLabel.textContent = score >= 75 ? 'Good Match' : score >= 50 ? 'Partial Match' : 'Low Match';
+      scoreLabel.style.color = color;
+
+      matchedKws.innerHTML = matched.map(kw => `<span class="pill">${kw}</span>`).join('');
+      missingKws.innerHTML  = missing.map(kw => `<span class="pill">${kw}</span>`).join('');
+      suggList.innerHTML    = suggestions.map(s => `<li>${s}</li>`).join('');
+    }
+
+    function showResults(state) {
+      resultsEmpty.classList.toggle('hidden',   state !== 'empty');
+      resultsLoading.classList.toggle('hidden', state !== 'loading');
+      resultsContent.classList.toggle('hidden', state !== 'content');
+    }
+
+    function showError(msg) {
+      if (!msg) { errorBanner.classList.add('hidden'); return; }
+      errorBanner.textContent = msg;
+      errorBanner.classList.remove('hidden');
+      setTimeout(() => errorBanner.classList.add('hidden'), 5000);
+    }
+  </script>
+</body>
+</html>
