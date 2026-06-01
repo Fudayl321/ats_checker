@@ -51,6 +51,12 @@ test('filters out JD filler words', () => {
   fillers.forEach(w => assert.ok(!kws.includes(w), `"${w}" should be filtered out`));
 });
 
+test('splits hyphenated words and filters filler halves', () => {
+  const kws = extractKeywords('detail-oriented self-motivated fast-paced on-the-job');
+  const noise = ['detailoriented','selfmotivated','fastpaced','onthejob','oriented','self','paced','motivated'];
+  noise.forEach(w => assert.ok(!kws.includes(w), `"${w}" should not appear`));
+});
+
 // --- matchKeywords ---
 console.log('\nmatchKeywords');
 

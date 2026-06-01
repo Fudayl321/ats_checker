@@ -40,11 +40,27 @@ const STOP_WORDS = new Set([
 
   // Soft filler often appearing in JDs
   'etc','eg','ie','plus','bonus','preferred','required','desired','optional',
+
+  // Generic action verbs (not technical skills)
+  'identify','perform','become','participate','communicate','contribute','attend',
+  'resolve','adhere','adapt','abreast','prepare','present','report','assist',
+  'coordinate','maintain','handle','process','complete','update','schedule',
+
+  // Generic descriptors and adverbs
+  'oriented','focused','driven','based','related','overall','written','verbal',
+  'oral','clearly','accurately','properly','consistently','proactively','thoroughly',
+  'proficient','successful','encouraged','paced','cross','self','detailed',
+  'appropriate','appropriately','potential','internal','external','general',
+
+  // Generic JD nouns (not skills)
+  'information','activities','tasks','satisfaction','commitment','willingness',
+  'passion','career','trend','year','individuals','members','ability','summary',
+  'resolution','templates','solutions','deliverables','requirements','specifications',
 ]);
 
 function extractKeywords(text) {
   if (!text || !text.trim()) return [];
-  const words = text.toLowerCase().split(/\s+/);
+  const words = text.toLowerCase().split(/[\s\-–—\/]+/); // split on whitespace, hyphens, dashes, slashes
   const clean = w => w.replace(/[^a-z0-9]/g, '');
   const usable = w => w.length > 2 && !STOP_WORDS.has(w);
 
