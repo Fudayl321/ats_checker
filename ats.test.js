@@ -153,6 +153,16 @@ test('returns count matching found array length', () => {
   assert.strictEqual(count, found.length, `count ${count} should equal found.length ${found.length}`);
 });
 
+test('detects job titles (short capitalised line)', () => {
+  const { found } = detectSections('Software Engineer\nBuilt APIs and led projects.');
+  assert.ok(found.includes('hasJobTitles'), `expected hasJobTitles, got ${JSON.stringify(found)}`);
+});
+
+test('passes noGarbling check for clean text', () => {
+  const { found } = detectSections('I am a software engineer with experience in building web applications and services');
+  assert.ok(found.includes('noGarbling'), `expected noGarbling, got ${JSON.stringify(found)}`);
+});
+
 // --- Summary ---
 console.log(`\n${passed} passed, ${failed} failed\n`);
 if (failed > 0) process.exit(1);
